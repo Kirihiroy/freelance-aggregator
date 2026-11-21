@@ -52,6 +52,14 @@
   #sources { display: flex; flex-wrap: wrap; gap: 4px 12px; }
   .meta a { color: var(--muted); }
   .empty { text-align: center; color: var(--muted); padding: 40px 0; }
+  #chips { gap: 6px; }
+  #chips .lbl { color: var(--muted); font-size: 14px; margin-right: 2px; }
+  .chip { font-size: 14px; padding: 4px 12px; border-radius: 999px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--text); cursor: pointer; }
+  .chip:hover { border-color: var(--accent); }
+  .chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .chip .n { opacity: .65; font-size: 12px; margin-left: 4px; }
+  .chip.reset { border-style: dashed; color: var(--muted); }
   #manual { width: 100%; font-size: 14px; }
   #manual summary { cursor: pointer; color: var(--muted); user-select: none; }
   #manualLinks { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 4px 24px; margin-top: 8px;
@@ -77,6 +85,7 @@
       <option value="priceAsc">Сначала дешёвые</option>
     </select>
   </div>
+  <div class="row" id="chips"></div>
   <div class="row">
     <span>Цена, ₽:</span>
     <input type="number" id="pmin" placeholder="от" min="0" step="500">
@@ -135,6 +144,18 @@ function renderManualLinks() {
   $('manual').addEventListener('toggle', () => store.set('manualOpen', $('manual').open));
 }
 
+// Быстрые фильтры: включённые кнопки работают через «или», вместе с поиском — через «и».
+// У кириллицы нет \b, поэтому начало слова проверяем через (?<![а-яё]) — иначе «бот» нашёлся бы в «работа».
+const CHIPS = [
+  ['Telegram-боты', /(?<![а-яё])бот|\bbots?\b|телеграм|telegram|(?<![а-яё])тг(?![а-яё])|aiogram|telebot|grammy|telegraf/i],
+  ['Mini Apps', /mini ?apps?|мини.?ап|мини.?прилож|telegram web ?apps?|\bwebapp\b|\btma\b/i],
+  ['Сайты', /сайт|лендинг|landing|web ?site|интернет.магазин|wordpress|tilda|тильд/i],
+  ['Python', /python|питон|django|fastapi|flask|aiogram/i],
+  ['Node.js / JS', /node\.?js|express\.?js|nest\.?js|javascript|(?<![a-z])js(?![a-z])/i],
+  ['Парсеры', /парс[ие]|парсинг|scrap|crawler|selenium|playwright/i],
+];
+const chipText = (o) => o.title + ' ' + (o.description || '') + ' ' + (o.category || '');
+
 let data = { orders: [], status: {} };
 const prevVisit = store.get('lastVisit', null);
 store.set('lastVisit', new Date().toISOString());
@@ -147,6 +168,7 @@ $('pmax').value = saved.pmax || '';
 $('noprice').checked = saved.noprice !== false;
 $('sort').value = saved.sort || 'date';
 const enabled = new Set(saved.sources || SOURCES);
+const chipsOn = new Set((saved.chips || []).filter((c) => CHIPS.some(([n]) => n === c)));
 // источники, появившиеся после сохранения фильтров, включены по умолчанию
 for (const s of SOURCES) if (!(saved.knownSources || []).includes(s) && saved.sources) enabled.add(s);
 $('sources').innerHTML = SOURCES.map((s) =>
@@ -156,7 +178,7 @@ $('sources').innerHTML = SOURCES.map((s) =>
 function saveFilters() {
   store.set('filters', {
     q: $('q').value, pmin: $('pmin').value, pmax: $('pmax').value, noprice: $('noprice').checked,
-    sort: $('sort').value, sources: [...enabled], knownSources: SOURCES,
+    sort: $('sort').value, sources: [...enabled], knownSources: SOURCES, chips: [...chipsOn],
   });
 }
 
@@ -185,6 +207,10 @@ function render() {
       const top = o.priceMax || o.price;
       if (top < pmin || o.price > pmax) return false;
     }
+    if (chipsOn.size) {
+      const t = chipText(o);
+      if (!CHIPS.some(([n, re]) => chipsOn.has(n) && re.test(t))) return false;
+    }
     if (words.length) {
       const text = (o.title + ' ' + o.description + ' ' + o.category).toLowerCase();
       if (!words.some((w) => text.includes(w))) return false;
@@ -192,6 +218,7 @@ function render() {
     return true;
   });
 
+  renderChips();
   const s = $('sort').value;
   const p = (o) => o.priceMax || o.price;
   if (s === 'priceDesc') list.sort((a, b) => (p(b) ?? -1) - (p(a) ?? -1));
@@ -225,6 +252,14 @@ function render() {
     (st.lastRun ? ` · обновлено ${ago(st.lastRun)}` : '');
 }
 
+// счётчик на кнопке — сколько заказов этой темы среди включённых площадок
+function renderChips() {
+  const pool = data.orders.filter((o) => enabled.has(o.source));
+  $('chips').innerHTML = '<span class="lbl">Быстрый фильтр:</span>' + CHIPS.map(([n, re]) =>
+    `<button class="chip${chipsOn.has(n) ? ' on' : ''}" data-chip="${esc(n)}">${esc(n)}<span class="n">${pool.filter((o) => re.test(chipText(o))).length}</span></button>`
+  ).join('') + (chipsOn.size ? '<button class="chip reset" data-chip="">сбросить</button>' : '');
+}
+
 async function load() {
   try {
     const r = await fetch('/api/orders');
@@ -237,6 +272,13 @@ async function load() {
 $('sources').addEventListener('change', (e) => {
   const s = e.target.dataset.src; if (!s) return;
   e.target.checked ? enabled.add(s) : enabled.delete(s);
+  saveFilters(); render();
+});
+$('chips').addEventListener('click', (e) => {
+  const b = e.target.closest('.chip'); if (!b) return;
+  const n = b.dataset.chip;
+  if (!n) chipsOn.clear();
+  else chipsOn.has(n) ? chipsOn.delete(n) : chipsOn.add(n);
   saveFilters(); render();
 });
 $('list').addEventListener('click', (e) => {
