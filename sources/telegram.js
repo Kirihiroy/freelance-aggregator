@@ -1,5 +1,6 @@
 // Публичные Telegram-каналы через веб-версию https://t.me/s/<канал> (без аккаунта и API-ключей).
 // Список каналов — в channels.json.
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const cheerio = require('cheerio');
@@ -35,6 +36,41 @@ function loadChannels() {
   }
 }
 
+const DIGEST_MAX_DAYS = 7; // старые дайджесты не берём — заказы в них уже разобраны
+
+// Канал-дайджест (например, @allgigs): один пост = список заказов по разделам «📌 Раздел»,
+// у каждой строки своя ссылка. Разбиваем пост на отдельные заказы из нужных разделов.
+function parseDigest($, msg, ch, post, date) {
+  const body = msg.find('.tgme_widget_message_text').first();
+  const sections = (ch.sections || []).map((s) => s.toLowerCase());
+  const out = [];
+  let current = '';
+  for (const chunk of (body.html() || '').split(/<br\s*\/?>/i)) {
+    const part = cheerio.load(`<div>${chunk}</div>`);
+    const line = clean(part('div').text());
+    if (!line) continue;
+    if (line.startsWith('📌')) { current = line.replace('📌', '').trim(); continue; }
+    if (sections.length && !sections.some((s) => current.toLowerCase().includes(s))) continue;
+    const url = part('a[href^="http"]').first().attr('href');
+    // skipUrls — сайты вакансий в штат (не разовые заказы)
+    if (!url || (ch.skipUrls || []).some((s) => url.includes(s))) continue;
+    const title = line.replace(/^[^\p{L}\p{N}]+/u, '');
+    out.push({
+      id: 'tgd:' + crypto.createHash('md5').update(url).digest('hex').slice(0, 16),
+      source: 'Telegram',
+      title,
+      description: '',
+      url,
+      tgUrl: `https://t.me/${post}`,
+      price: null,
+      category: `@${ch.username} · ${current}`,
+      date,
+      ...(ch.lang ? { lang: ch.lang } : {}),
+    });
+  }
+  return out;
+}
+
 async function fetchTelegram() {
   const out = [];
   const errors = [];
@@ -43,6 +79,17 @@ async function fetchTelegram() {
       const html = await get(`https://t.me/s/${encodeURIComponent(ch.username)}`);
       const $ = cheerio.load(html);
       if (!$('.tgme_channel_info').length) throw new Error('канал закрыт или не существует');
+      if (ch.digest) {
+        $('.tgme_widget_message').each((_, el) => {
+          const msg = $(el);
+          const post = msg.attr('data-post');
+          const dt = msg.find('time[datetime]').last().attr('datetime');
+          if (!post || !dt || Date.now() - new Date(dt) > DIGEST_MAX_DAYS * 864e5) return;
+          out.push(...parseDigest($, msg, ch, post, new Date(dt).toISOString()));
+        });
+        await sleep(1000);
+        continue;
+      }
       $('.tgme_widget_message').each((_, el) => {
         const msg = $(el);
         const post = msg.attr('data-post');

@@ -1,10 +1,13 @@
 {
-  "_help": "Публичные Telegram-каналы с заказами. username — имя канала без @. itFilter: true — брать только посты с IT-словами (для смешанных каналов). Канал должен открываться по адресу https://t.me/s/<username>.",
+  "_help": "Публичные Telegram-каналы с заказами. username — имя канала без @. itFilter: true — брать только посты с IT-словами (для смешанных каналов). Канал должен открываться по адресу https://t.me/s/<username>. digest: true — канал публикует дайджесты (один пост = много заказов по разделам «📌 Раздел»); sections — какие разделы брать; lang — язык заказчиков (en = иностранные).",
   "channels": [
     { "username": "job_developer",    "itFilter": false, "note": "Фриланс для разработчиков — IT-заказы, многие продублированы с Kwork" },
     { "username": "zakazy_it",        "itFilter": true,  "note": "LeadRadar: заказы IT и дизайна, контакты заказчика — через их бота" },
     { "username": "freelancetaverna", "itFilter": true,  "note": "Фриланс Таверна — смешанный" },
     { "username": "workk_on",         "itFilter": true,  "note": "Work On — смешанный" },
-    { "username": "digitaltender",    "itFilter": true,  "note": "DIGITAL Tender — смешанный" }
+    { "username": "digitaltender",    "itFilter": true,  "note": "DIGITAL Tender — смешанный" },
+    { "username": "allgigs", "digest": true, "sections": ["Разработка", "Аналитика"], "lang": "en",
+      "skipUrls": ["workew.com", "remotive.com", "workingnomads.com", "weworkremotely.com", "remoteok.com", "wellfound.com", "greenhouse.io", "lever.co", "ashbyhq.com", "linkedin.com/jobs"],
+      "note": "Mellow: ежедневный дайджест зарубежных фриланс-заказов (ссылки на LinkedIn, Mellow Radar и др.)" }
   ]
 }

@@ -178,8 +178,9 @@ const FILTER_GROUPS = [
     ['1С', /(?<![a-z0-9а-яё])1[сc](?![a-z0-9а-яё])(?![\s:-]*(?:битрикс|bitrix))/i],
   ]],
   ['human', 'Язык заказа', [
-    ['Русский', (o) => cyr(o) >= lat(o)],
-    ['English', (o) => cyr(o) < lat(o)],
+    // o.lang задаёт источник, если текст переведён (дайджест @allgigs пересказывает иностранные заказы по-русски)
+    ['Русский', (o) => (o.lang ? o.lang === 'ru' : cyr(o) >= lat(o))],
+    ['English', (o) => (o.lang ? o.lang === 'en' : cyr(o) < lat(o))],
   ]],
 ];
 const chipText = (o) => o.title + ' ' + (o.description || '') + ' ' + (o.category || '');
