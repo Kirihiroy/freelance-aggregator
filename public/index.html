@@ -5,17 +5,39 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>IT-заказы</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='2' y='2' width='60' height='60' rx='14' fill='%232563eb'/%3E%3Ctext x='32' y='42' font-family='Segoe UI,Arial' font-weight='700' font-size='24' fill='white' text-anchor='middle'%3E%3C/%3E%3C/text%3E%3Ccircle cx='51' cy='13' r='8' fill='%2322c55e'/%3E%3C/svg%3E">
+<script>
+  // тему ставим до отрисовки страницы, чтобы не было вспышки светлого фона
+  try { const t = JSON.parse(localStorage.getItem('theme')); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch {}
+</script>
 <style>
+  /* Тема: data-theme="light" | "dark" на <html>; без атрибута — как в системе */
   :root {
+    color-scheme: light;
     --bg: #f4f5f7; --card: #fff; --text: #1c1e21; --muted: #6b7280; --border: #e3e5e8;
-    --accent: #2563eb; --price: #15803d; --new: #f59e0b;
+    --accent: #2563eb; --on-accent: #fff; --price: #15803d; --new: #f59e0b; --err: #dc2626;
     --fl: #e11d48; --kwork: #16a34a; --frru: #7c3aed; --tg: #0284c7;
-    --fj: #0d9488; --ws: #ea580c; --flcom: #2563eb;
+    --fj: #0d9488; --ws: #ea580c; --flcom: #2563eb; --reddit: #ff4500;
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #121417; --card: #1c1f24; --text: #e6e8eb; --muted: #9aa1ab; --border: #2c3037;
+    --accent: #60a5fa; --on-accent: #0b1220; --price: #4ade80; --new: #fbbf24; --err: #f87171;
+    --fl: #fb7185; --kwork: #4ade80; --frru: #a78bfa; --tg: #38bdf8;
+    --fj: #2dd4bf; --ws: #fb923c; --flcom: #60a5fa; --reddit: #ff7a45;
   }
   @media (prefers-color-scheme: dark) {
-    :root { --bg: #121417; --card: #1c1f24; --text: #e6e8eb; --muted: #9aa1ab; --border: #2c3037;
-      --accent: #60a5fa; --price: #4ade80; }
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #121417; --card: #1c1f24; --text: #e6e8eb; --muted: #9aa1ab; --border: #2c3037;
+      --accent: #60a5fa; --on-accent: #0b1220; --price: #4ade80; --new: #fbbf24; --err: #f87171;
+      --fl: #fb7185; --kwork: #4ade80; --frru: #a78bfa; --tg: #38bdf8;
+      --fj: #2dd4bf; --ws: #fb923c; --flcom: #60a5fa; --reddit: #ff7a45;
+    }
   }
+  .theme { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .theme button { background: transparent; color: var(--muted); border-radius: 0; padding: 6px 10px; font-size: 14px; }
+  .theme button + button { border-left: 1px solid var(--border); }
+  .theme button.on { background: var(--accent); color: var(--on-accent); }
   * { box-sizing: border-box; }
   body { margin: 0; font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); }
   header { background: var(--card); border-bottom: 1px solid var(--border); padding: 12px 16px; }
@@ -28,10 +50,10 @@
   input[type=text] { flex: 1 1 220px; }
   input[type=number] { width: 110px; }
   label.chk { display: inline-flex; gap: 5px; align-items: center; cursor: pointer; user-select: none; }
-  button { font: inherit; padding: 7px 14px; border: 0; border-radius: 8px; background: var(--accent); color: #fff; cursor: pointer; }
+  button { font: inherit; padding: 7px 14px; border: 0; border-radius: 8px; background: var(--accent); color: var(--on-accent); cursor: pointer; }
   button:disabled { opacity: .6; cursor: wait; }
   .status { font-size: 13px; color: var(--muted); flex: 1 1 300px; text-align: right; }
-  .status .err { color: #dc2626; }
+  .status .err { color: var(--err); }
   main { max-width: 1000px; margin: 0 auto; padding: 16px; }
   .order { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; }
   .order.new { border-left: 4px solid var(--new); }
@@ -48,7 +70,7 @@
   .src.FL\.ru { color: var(--fl); } .src.Kwork { color: var(--kwork); } .src.Freelance\.ru { color: var(--frru); }
   .src.Telegram { color: var(--tg); } .src.Freelancejob { color: var(--fj); }
   .src.Workspace { color: var(--ws); } .src.Freelancer\.com { color: var(--flcom); }
-  .src.Reddit { color: #ff4500; }
+  .src.Reddit { color: var(--reddit); }
   .src.IT { color: var(--muted); } /* «Freelancer.com · не IT» */
   .price small { color: var(--muted); font-weight: 400; }
   #sources { display: flex; flex-wrap: wrap; gap: 4px 12px; }
@@ -61,7 +83,7 @@
   .chip { font-size: 14px; padding: 4px 12px; border-radius: 999px; border: 1px solid var(--border);
     background: var(--bg); color: var(--text); cursor: pointer; }
   .chip:hover { border-color: var(--accent); }
-  .chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .chip.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
   .chip .n { opacity: .65; font-size: 12px; margin-left: 4px; }
   .chip.reset { border-style: dashed; color: var(--muted); }
   #manual { width: 100%; font-size: 14px; }
@@ -78,6 +100,9 @@
 <header>
   <div class="row">
     <h1>IT-заказы</h1>
+    <span class="theme" id="theme" title="Тема">
+      <button data-t="light" title="Светлая">☀️</button><button data-t="dark" title="Тёмная">🌙</button><button data-t="auto" title="Как в системе">🖥️</button>
+    </span>
     <span class="status" id="status">Загрузка…</span>
     <button id="refresh">Обновить сейчас</button>
   </div>
@@ -328,6 +353,20 @@ $('refresh').addEventListener('click', async () => {
   try { await fetch('/api/refresh', { method: 'POST' }); } catch {}
   await load();
   $('refresh').disabled = false; $('refresh').textContent = 'Обновить сейчас';
+});
+
+// переключатель темы: light / dark / auto (как в системе)
+function applyTheme(t) {
+  if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+  else delete document.documentElement.dataset.theme;
+  for (const b of $('theme').querySelectorAll('button')) b.classList.toggle('on', b.dataset.t === (t || 'auto'));
+}
+applyTheme(store.get('theme', 'auto'));
+$('theme').addEventListener('click', (e) => {
+  const t = e.target.closest('button')?.dataset.t;
+  if (!t) return;
+  store.set('theme', t);
+  applyTheme(t);
 });
 
 renderManualLinks();
