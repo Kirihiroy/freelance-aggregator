@@ -17,7 +17,7 @@
   }
   * { box-sizing: border-box; }
   body { margin: 0; font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); }
-  header { position: sticky; top: 0; z-index: 5; background: var(--card); border-bottom: 1px solid var(--border); padding: 12px 16px; }
+  header { background: var(--card); border-bottom: 1px solid var(--border); padding: 12px 16px; }
   .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; max-width: 1000px; margin: 0 auto; }
   .row + .row { margin-top: 10px; }
   h1 { font-size: 18px; margin: 0; }
@@ -52,8 +52,10 @@
   #sources { display: flex; flex-wrap: wrap; gap: 4px 12px; }
   .meta a { color: var(--muted); }
   .empty { text-align: center; color: var(--muted); padding: 40px 0; }
-  #chips { gap: 6px; }
-  #chips .lbl { color: var(--muted); font-size: 14px; margin-right: 2px; }
+  #chips { display: block; }
+  .chiprow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .chiprow + .chiprow { margin-top: 6px; }
+  #chips .lbl { color: var(--muted); font-size: 14px; min-width: 110px; }
   .chip { font-size: 14px; padding: 4px 12px; border-radius: 999px; border: 1px solid var(--border);
     background: var(--bg); color: var(--text); cursor: pointer; }
   .chip:hover { border-color: var(--accent); }
@@ -144,17 +146,43 @@ function renderManualLinks() {
   $('manual').addEventListener('toggle', () => store.set('manualOpen', $('manual').open));
 }
 
-// Быстрые фильтры: включённые кнопки работают через «или», вместе с поиском — через «и».
-// У кириллицы нет \b, поэтому начало слова проверяем через (?<![а-яё]) — иначе «бот» нашёлся бы в «работа».
-const CHIPS = [
-  ['Telegram-боты', /(?<![а-яё])бот|\bbots?\b|телеграм|telegram|(?<![а-яё])тг(?![а-яё])|aiogram|telebot|grammy|telegraf/i],
-  ['Mini Apps', /mini ?apps?|мини.?ап|мини.?прилож|telegram web ?apps?|\bwebapp\b|\btma\b/i],
-  ['Сайты', /сайт|лендинг|landing|web ?site|интернет.магазин|wordpress|tilda|тильд/i],
-  ['Python', /python|питон|django|fastapi|flask|aiogram/i],
-  ['Node.js / JS', /node\.?js|express\.?js|nest\.?js|javascript|(?<![a-z])js(?![a-z])/i],
-  ['Парсеры', /парс[ие]|парсинг|scrap|crawler|selenium|playwright/i],
+// Быстрые фильтры. Внутри группы кнопки работают через «или», между группами и с поиском — через «и».
+// У кириллицы нет \b, поэтому границу слова проверяем через (?<![а-яё]) — иначе «бот» нашёлся бы в «работа».
+// Условие — регулярное выражение по тексту заказа или функция (o) => true/false.
+const cyr = (o) => (o.title + ' ' + (o.description || '').slice(0, 300)).match(/[а-яё]/gi)?.length || 0;
+const lat = (o) => (o.title + ' ' + (o.description || '').slice(0, 300)).match(/[a-z]/gi)?.length || 0;
+const FILTER_GROUPS = [
+  ['dir', 'Направление', [
+    ['Telegram-боты', /(?<![а-яё])бот|\bbots?\b|телеграм|telegram|(?<![а-яё])тг(?![а-яё])|aiogram|telebot|grammy|telegraf/i],
+    ['Mini Apps', /mini ?apps?|мини.?ап|мини.?прилож|telegram web ?apps?|\bwebapp\b|\btma\b/i],
+    ['Сайты', /сайт|лендинг|landing|web ?site|интернет.магазин|wordpress|tilda|тильд|битрикс|bitrix|shopify/i],
+    ['Вёрстка', /вёрст|верст|(?<![a-z])html(?![a-z])|(?<![a-z])css(?![a-z])|figma|фигм/i],
+    ['Мобильные', /мобильн\S* (?:прилож|разработ)|(?<![а-яё])apk|android|андроид|(?<![a-z])ios(?![a-z])|iphone|flutter|react native|mobile app/i],
+    ['Парсеры', /парс[ие]|парсинг|спарс|scrap|crawler|selenium|playwright/i],
+    ['ИИ / нейросети', /нейросет|нейронк|(?<![а-яё])ии(?![а-яё])|(?<![a-z])ai(?![a-z])|(?<![a-z])gpt|openai|(?<![a-z])llm|machine learning|машинн\S* обучен|(?<![a-z])rag(?![a-z])/i],
+    ['Интеграции / CRM', /интеграц|(?<![a-z])api(?![a-z])|n8n|zapier|make\.com|(?<![a-z])crm|амо ?crm|amo ?crm|битрикс ?24|bitrix ?24|автоматизац|automation/i],
+    ['Игры', /(?<![а-яё])игр[аыуоеи]|геймдев|gamedev|unity|unreal|godot|roblox|(?<![a-z])games?(?![a-z])/i],
+    ['Доработки / баги', /доработ|исправ|(?<![а-яё])баг|ошибк|(?<![a-z])fix|(?<![a-z])bugs?(?![a-z])|debug/i],
+  ]],
+  ['lang', 'Язык', [
+    ['Python', /python|питон|django|fastapi|flask|aiogram/i],
+    ['JS / TS', /node\.?js|javascript|typescript|(?<![a-z])[jt]s(?![a-z])|react|(?<![a-z])vue|next\.?js|nest\.?js|express\.?js|angular/i],
+    ['PHP', /(?<![a-z])php|laravel|symfony|yii|wordpress|битрикс|bitrix/i],
+    ['C# / .NET', /c#|(?<![a-z])\.net(?![a-z])|asp\.net|(?<![a-z])wpf(?![a-z])/i],
+    ['Java / Kotlin', /(?<![a-z])java(?!script)|kotlin|spring boot/i],
+    ['C / C++', /c\+\+|(?<![a-z])cpp(?![a-z])|(?<![а-яё])си(?![а-яё])|(?<![a-z])qt(?![a-z])/i],
+    // «1С-Битрикс» — это PHP, не 1С
+    ['1С', /(?<![a-z0-9а-яё])1[сc](?![a-z0-9а-яё])(?![\s:-]*(?:битрикс|bitrix))/i],
+  ]],
+  ['human', 'Язык заказа', [
+    ['Русский', (o) => cyr(o) >= lat(o)],
+    ['English', (o) => cyr(o) < lat(o)],
+  ]],
 ];
 const chipText = (o) => o.title + ' ' + (o.description || '') + ' ' + (o.category || '');
+const chipKey = (gid, name) => gid + ':' + name;
+const chipMatch = (test, o) => (test instanceof RegExp ? test.test(chipText(o)) : test(o));
+const ALL_CHIP_KEYS = FILTER_GROUPS.flatMap(([gid, , items]) => items.map(([n]) => chipKey(gid, n)));
 
 let data = { orders: [], status: {} };
 const prevVisit = store.get('lastVisit', null);
@@ -168,7 +196,7 @@ $('pmax').value = saved.pmax || '';
 $('noprice').checked = saved.noprice !== false;
 $('sort').value = saved.sort || 'date';
 const enabled = new Set(saved.sources || SOURCES);
-const chipsOn = new Set((saved.chips || []).filter((c) => CHIPS.some(([n]) => n === c)));
+const chipsOn = new Set((saved.chips || []).filter((c) => ALL_CHIP_KEYS.includes(c)));
 // источники, появившиеся после сохранения фильтров, включены по умолчанию
 for (const s of SOURCES) if (!(saved.knownSources || []).includes(s) && saved.sources) enabled.add(s);
 $('sources').innerHTML = SOURCES.map((s) =>
@@ -207,9 +235,9 @@ function render() {
       const top = o.priceMax || o.price;
       if (top < pmin || o.price > pmax) return false;
     }
-    if (chipsOn.size) {
-      const t = chipText(o);
-      if (!CHIPS.some(([n, re]) => chipsOn.has(n) && re.test(t))) return false;
+    for (const [gid, , items] of FILTER_GROUPS) {
+      const on = items.filter(([n]) => chipsOn.has(chipKey(gid, n)));
+      if (on.length && !on.some(([, test]) => chipMatch(test, o))) return false;
     }
     if (words.length) {
       const text = (o.title + ' ' + o.description + ' ' + o.category).toLowerCase();
@@ -255,9 +283,15 @@ function render() {
 // счётчик на кнопке — сколько заказов этой темы среди включённых площадок
 function renderChips() {
   const pool = data.orders.filter((o) => enabled.has(o.source));
-  $('chips').innerHTML = '<span class="lbl">Быстрый фильтр:</span>' + CHIPS.map(([n, re]) =>
-    `<button class="chip${chipsOn.has(n) ? ' on' : ''}" data-chip="${esc(n)}">${esc(n)}<span class="n">${pool.filter((o) => re.test(chipText(o))).length}</span></button>`
-  ).join('') + (chipsOn.size ? '<button class="chip reset" data-chip="">сбросить</button>' : '');
+  $('chips').innerHTML = FILTER_GROUPS.map(([gid, title, items], i) =>
+    `<div class="chiprow"><span class="lbl">${esc(title)}:</span>` + items.map(([n, test]) => {
+      const key = chipKey(gid, n);
+      return `<button class="chip${chipsOn.has(key) ? ' on' : ''}" data-chip="${esc(key)}">${esc(n)}` +
+        `<span class="n">${pool.filter((o) => chipMatch(test, o)).length}</span></button>`;
+    }).join('') +
+    (i === FILTER_GROUPS.length - 1 && chipsOn.size ? '<button class="chip reset" data-chip="">сбросить всё</button>' : '') +
+    '</div>'
+  ).join('');
 }
 
 async function load() {
