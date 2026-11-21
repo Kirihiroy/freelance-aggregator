@@ -62,6 +62,8 @@ Requires [Node.js](https://nodejs.org/) 18+.
 
 **Windows:** double-click `start.bat` — it installs dependencies and opens http://localhost:3000.
 
+**Windows, as a desktop app:** create a shortcut to `wscript.exe "<path>\app\launch.vbs"` with the icon `app\icon.ico`. It starts the server in the background (no console window, output goes to `data\server.log`) and opens the feed in a standalone Edge window. Closing the window keeps the server collecting orders; `app\stop.vbs` stops it.
+
 **Manually:**
 ```bash
 npm install
