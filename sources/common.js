@@ -52,8 +52,27 @@ const IT_WORDS = new RegExp(
     'мобильн\\S* приложени', 'веб-приложени', 'android', '\\bios\\b', 'unity', 'базы? данных', 'sql', 'хостинг',
     'google apps script', '\\bvba\\b', '(?<![а-яё])ит(?![а-яё])', '\\bit\\b', 'админ\\S* (?:сервер|сайт|linux)',
     'kubernetes', 'docker', 'linux', 'сервер',
+    // английские — для Reddit и других зарубежных источников
+    'website', 'web ?app', '\\bbot\\b', 'scrap', 'developer', 'programmer', '\\bcoder\\b', '\\bdev\\b',
+    'automation', 'shopify', 'chrome extension', 'browser extension', '\\bapp\\b', 'database', 'macro',
+    'software', 'landing page', 'saas', '\\bai\\b', 'openai', '\\bgpt', 'firebase', 'supabase', 'flutter', '\\bc\\+\\+', '\\bc#', 'golang', '\\brust\\b',
   ].join('|'),
   'i'
 );
 
-module.exports = { get, sleep, parsePrice, moscowToIso, clean, IT_WORDS };
+// курс доллара ЦБ РФ; кешируется на час, при ошибке — последний известный
+let usdRub = null;
+let usdRubAt = 0;
+async function loadUsdRub() {
+  if (usdRub && Date.now() - usdRubAt < 3600e3) return usdRub;
+  try {
+    const j = JSON.parse(await get('https://www.cbr-xml-daily.ru/daily_json.js'));
+    usdRub = j.Valute.USD.Value;
+    usdRubAt = Date.now();
+  } catch (e) {
+    console.warn('Не удалось получить курс ЦБ —', e.message);
+  }
+  return usdRub;
+}
+
+module.exports = { get, sleep, parsePrice, moscowToIso, clean, IT_WORDS, loadUsdRub };

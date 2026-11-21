@@ -1,22 +1,10 @@
 // Freelancer.com — официальный открытый API (без ключа). Заказы на английском,
 // бюджеты в разных валютах — пересчитываем в рубли по курсу ЦБ.
-const { get, clean } = require('./common');
+const { get, clean, loadUsdRub } = require('./common');
 
 const IT_CATEGORIES = new Set(['Websites, IT & Software', 'Mobile Phones & Computing', 'Artificial Intelligence']);
 const PAGES = 5;
 const PER_PAGE = 100;
-
-let usdRub = null; // последний известный курс — если ЦБ недоступен, используем его
-
-async function loadUsdRub() {
-  try {
-    const j = JSON.parse(await get('https://www.cbr-xml-daily.ru/daily_json.js'));
-    usdRub = j.Valute.USD.Value;
-  } catch (e) {
-    console.warn('Freelancer.com: не удалось получить курс ЦБ —', e.message);
-  }
-  return usdRub;
-}
 
 const SIGN = { USD: '$', EUR: '€', GBP: '£', INR: '₹', AUD: 'A$', CAD: 'C$' };
 

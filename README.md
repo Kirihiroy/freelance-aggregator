@@ -1,81 +1,98 @@
-# Агрегатор IT-заказов с фриланс-бирж
+# Freelance Job Aggregator
 
-Локальное веб-приложение, которое каждые 10 минут собирает свежие IT-заказы с нескольких русскоязычных фриланс-бирж и показывает их в одной ленте с фильтрами.
+[Русская версия](README.ru.md)
 
-![Скриншот](docs/screenshot.png)
+A self-hosted web app that collects fresh IT / software-development gigs from six freelance marketplaces, Reddit and Telegram channels every 10 minutes and shows them in a single filterable feed.
 
-## Возможности
+![Screenshot](docs/screenshot.png)
 
-- **Шесть бирж и Telegram-каналы в одной ленте:** FL.ru, Kwork, Freelance.ru, Freelancejob.ru, Workspace.ru, Freelancer.com и публичные Telegram-каналы с заказами
-- **Бюджеты в рублях:** цены с Freelancer.com (доллары, евро, рупии…) пересчитываются по курсу ЦБ, исходная сумма видна рядом
-- **Без дублей:** если Telegram-канал пересылает заказ с биржи, он показывается один раз
-- **Фильтр по бюджету** («от» и «до»), с возможностью скрыть заказы без указанной цены
-- **Поиск по ключевым словам**: несколько слов через запятую, например `python, бот, парсер`
-- **Сортировка** по дате или бюджету
-- **Подсветка новых заказов**, появившихся с прошлого визита
-- Фильтры запоминаются между запусками
-- Автоматическое обновление в фоне и кнопка ручного обновления
+## Features
 
-## Источники
+- **8 sources, one feed:** FL.ru, Kwork, Freelance.ru, Freelancejob.ru, Workspace.ru, Freelancer.com, Reddit and public Telegram channels
+- **Normalized budgets:** prices in USD, EUR, INR, etc. are converted to a single currency using the daily Central Bank rate; the original amount is shown next to it
+- **De-duplication:** when a Telegram channel reposts a gig from a marketplace, it appears only once
+- **Budget filter** (min / max), with an option to hide gigs without a stated budget
+- **Keyword search** with OR-logic (`python, bot, scraper`)
+- **Sorting** by date or budget
+- **"New since your last visit"** highlighting
+- Filters persist between sessions
+- Background auto-refresh plus a manual "refresh now" button
 
-| Площадка | Способ получения | Категории |
+## Sources
+
+| Source | How data is obtained | What is collected |
 |---|---|---|
-| FL.ru | Официальные RSS-ленты | Программирование, Сайты |
-| Kwork | JSON, встроенный в страницу биржи проектов | Разработка и IT |
-| Freelance.ru | Разбор HTML | Веб-разработка и IT, ИИ и нейросети |
-| Freelancejob.ru | Разбор HTML | Общая лента с фильтром по IT-словам + «Работа для программистов» |
-| Workspace.ru | Разбор HTML, только открытые тендеры | Разработка сайтов, приложения, CRM, геймдев |
-| Freelancer.com | Официальный открытый API | Заказы, где большинство навыков из IT-категорий |
-| Telegram | Публичная веб-версия каналов `t.me/s/<канал>`, без аккаунта и API-ключей | Каналы из `channels.json` |
+| FL.ru | Official RSS feeds | Programming, Websites |
+| Kwork | JSON embedded in the project board page | Development & IT |
+| Freelance.ru | HTML parsing | Web development & IT, AI |
+| Freelancejob.ru | HTML parsing | Main feed filtered by IT keywords + "Programmers" section |
+| Workspace.ru | HTML parsing, open tenders only | Websites, mobile apps, CRM, game dev |
+| Freelancer.com | Official public API | Projects where most required skills are IT-related |
+| Reddit | Official OAuth API (free key) | Hiring posts from r/forhire, r/slavelabour and others |
+| Telegram | Public channel web preview `t.me/s/<channel>` | Channels listed in `channels.json` |
 
-Запросы к площадкам идут с паузами и не чаще раза в 10 минут, чтобы не нагружать сайты.
+Requests are rate-limited (pauses between pages, at most one cycle every 10 minutes). Sites that block automated clients (Cloudflare challenges, login walls) are intentionally **not** scraped.
 
-### Telegram-каналы
+### Reddit setup
 
-Список каналов задаётся в `channels.json`:
+Reddit requires an API key for any automated access. It is free:
+
+1. Log in to Reddit and open https://www.reddit.com/prefs/apps
+2. Click **create another app…**, choose type **script**, set *redirect uri* to `http://localhost:8080` (required but unused).
+3. Copy `reddit.example.json` to `reddit.json` and fill in `client_id` (the string under the app name) and `client_secret`.
+
+`reddit.json` is git-ignored. Until it exists, the status bar shows Reddit as "not configured". The subreddit list and the tag that marks a hiring post (`[Hiring]`, `[Task]`…) can be changed in the same file.
+
+### Telegram channels
+
+Channels are configured in `channels.json`:
 
 ```json
 { "username": "job_developer", "itFilter": false }
 ```
 
-- `username` — имя канала без `@`. Канал должен быть публичным и открываться по адресу `https://t.me/s/<username>`.
-- `itFilter: true` — для смешанных каналов (где кроме IT публикуют SMM, монтаж и т.п.): берутся только посты, в заголовке которых есть IT-слова (сайт, бот, Python, 1С, парсер…).
+- `username` — channel name without `@`; the channel must be public (reachable at `https://t.me/s/<username>`).
+- `itFilter: true` — for mixed channels: only posts whose headline contains IT keywords are kept.
 
-Посты-резюме («меня зовут…», «ищу заказы») отбрасываются автоматически. Изменения в `channels.json` подхватываются при следующем обновлении, перезапуск не нужен.
+Posts where freelancers advertise themselves (résumés) are dropped automatically. Changes are picked up on the next refresh — no restart needed.
 
-## Запуск
+## Getting started
 
-Нужен [Node.js](https://nodejs.org/) 18 или новее.
+Requires [Node.js](https://nodejs.org/) 18+.
 
-**Windows:** дважды кликнуть `start.bat`. Он установит зависимости и откроет http://localhost:3000.
+**Windows:** double-click `start.bat` — it installs dependencies and opens http://localhost:3000.
 
-**Вручную:**
+**Manually:**
 ```bash
 npm install
 npm start
 ```
 
-Порт можно поменять переменной окружения `PORT`.
+Set the `PORT` environment variable to use a different port.
 
-## Устройство
+## Architecture
 
 ```
-server.js            HTTP-сервер, планировщик обновлений, хранение в data/orders.json
+server.js            HTTP server, refresh scheduler, persistence (data/orders.json)
 sources/
-  common.js          загрузка страниц, разбор цен и дат
+  common.js          HTTP helper, price/date parsing, IT keyword dictionary, FX rate
   fl.js              FL.ru (RSS)
   kwork.js           Kwork
   freelanceru.js     Freelance.ru
   freelancejob.js    Freelancejob.ru
-  workspace.js       Workspace.ru (тендеры)
-  freelancer.js      Freelancer.com (API + курс ЦБ)
-  telegram.js        Telegram-каналы
-channels.json        список Telegram-каналов
-public/index.html    интерфейс: фильтры и лента заказов
+  workspace.js       Workspace.ru (tenders)
+  freelancer.js      Freelancer.com (REST API)
+  reddit.js          Reddit (OAuth API)
+  telegram.js        Telegram channels
+channels.json        Telegram channel list
+reddit.example.json  Reddit config template
+public/index.html    UI: filters and feed (vanilla HTML/CSS/JS)
 ```
 
-Каждый источник — это функция, которая возвращает массив заказов в едином формате (`id`, `title`, `description`, `url`, `price`, `priceMax`, `category`, `date`). Чтобы добавить новую площадку, достаточно написать ещё один модуль в `sources/` и подключить его в `server.js`.
+Every source is a single async function that returns gigs in a common shape (`id`, `title`, `description`, `url`, `price`, `priceMax`, `category`, `date`). Adding a new marketplace means writing one module in `sources/` and registering it in `server.js`. A failing source never breaks the others — its error is shown in the status bar while the rest of the feed keeps updating.
 
-## Стек
+## Tech stack
 
-Node.js (встроенные `http` и `fetch`), [cheerio](https://cheerio.js.org/) для разбора HTML и RSS, чистые HTML/CSS/JS без фреймворков.
+Node.js (built-in `http` and `fetch`, no framework), [cheerio](https://cheerio.js.org/) for HTML/RSS parsing, vanilla HTML/CSS/JS front end with no build step.
+
+> The UI is currently in Russian, since most of the sources are Russian-language marketplaces.

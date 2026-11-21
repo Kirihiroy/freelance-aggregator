@@ -1,0 +1,13 @@
+{
+  "_help": "Скопируй этот файл в reddit.json и впиши ключи приложения с https://www.reddit.com/prefs/apps (тип script). reddit.json не попадает в git. subreddits: сабреддит -> тег в заголовке, по которому видно, что это заказ.",
+  "client_id": "ВСТАВЬ_CLIENT_ID",
+  "client_secret": "ВСТАВЬ_CLIENT_SECRET",
+  "itFilter": true,
+  "subreddits": {
+    "forhire": "[hiring]",
+    "freelance_forhire": "[hiring]",
+    "jobbit": "[hiring]",
+    "slavelabour": "[task]",
+    "gameDevClassifieds": "[paid]"
+  }
+}

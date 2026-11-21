@@ -47,6 +47,7 @@
   .src.FL\.ru { color: var(--fl); } .src.Kwork { color: var(--kwork); } .src.Freelance\.ru { color: var(--frru); }
   .src.Telegram { color: var(--tg); } .src.Freelancejob { color: var(--fj); }
   .src.Workspace { color: var(--ws); } .src.Freelancer\.com { color: var(--flcom); }
+  .src.Reddit { color: #ff4500; }
   .price small { color: var(--muted); font-weight: 400; }
   #sources { display: flex; flex-wrap: wrap; gap: 4px 12px; }
   .meta a { color: var(--muted); }
@@ -81,7 +82,7 @@
 
 <script>
 const $ = (id) => document.getElementById(id);
-const SOURCES = ['FL.ru', 'Kwork', 'Freelance.ru', 'Freelancejob', 'Workspace', 'Freelancer.com', 'Telegram'];
+const SOURCES = ['FL.ru', 'Kwork', 'Freelance.ru', 'Freelancejob', 'Workspace', 'Freelancer.com', 'Reddit', 'Telegram'];
 const store = {
   get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
@@ -170,6 +171,7 @@ function render() {
   const parts = SOURCES.map((n) => {
     const x = (st.sources || {})[n];
     if (!x) return `${n}: …`;
+    if (x.disabled) return `<span title="Нужен ключ API — см. README">${n}: не настроен</span>`;
     return x.ok ? `${n}: ${x.count}` : `<span class="err" title="${esc(x.error)}">${n}: ошибка</span>`;
   });
   $('status').innerHTML = `Показано ${list.length} из ${data.orders.length} · ${parts.join(' · ')}` +

@@ -15,6 +15,7 @@ const SOURCES = {
   'Workspace': require('./sources/workspace'),
   'Freelancer.com': require('./sources/freelancer'),
   'Telegram': require('./sources/telegram'),
+  'Reddit': require('./sources/reddit'),
 };
 
 let orders = new Map();
@@ -42,6 +43,11 @@ async function refresh() {
     Object.entries(SOURCES).map(async ([name, fn]) => {
       try {
         const list = await fn();
+        if (list === null) {
+          // источник требует настройки (например, ключ Reddit) — не ошибка
+          status.sources[name] = { ok: true, disabled: true, count: 0, at: now };
+          return;
+        }
         let added = 0;
         for (const o of list) {
           const prev = orders.get(o.id);
