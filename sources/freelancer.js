@@ -3,6 +3,32 @@
 const { get, clean, loadUsdRub } = require('./common');
 
 const IT_CATEGORIES = new Set(['Websites, IT & Software', 'Mobile Phones & Computing', 'Artificial Intelligence']);
+
+// Теги, которые Freelancer.com относит к IT-категориям, хотя это не программирование
+const NOT_DEV_TAGS = new Set([
+  'SEO', 'Digital Marketing', 'Link Building', 'Internet Marketing', 'Website Optimization', 'Google Adwords',
+  'Search Engine Marketing', 'AI Content Creation', 'AI Art Creation', 'AI Image Generation', 'AI Video Editing',
+  'AI Video Creation', 'AI Voice Generation', 'AI Design', 'Prompt Engineering', 'Data Entry', 'Web Search',
+  'Content Writing', 'Website Testing', 'Social Media Marketing',
+]);
+// Заголовки «не про код»: промпты, SEO, реклама, монтаж, тексты…
+const NOT_DEV_TITLE = /\bprompts?\b|\bseo\b|\blogo\b|video edit|\breels?\b|voice ?over|\barticles?\b|blog posts?|content writ|backlinks?|copywrit|data entry|social media|thumbnail|translat|\bads\b|marketing|branding/i;
+// Это не разработка, даже если рядом есть «website» («Website Form Data Entry»)
+const NEVER_DEV_TITLE = /data entry|details entry|\bparticipants?\b|recruit|\bresumes?\b|\btrainer\b|for sale|\bexcel\b|transcri|radio host|cartograph/i;
+// …но если в заголовке есть и разработка («SEO website build»), заказ оставляем
+const DEV_TITLE = /\b(?:websites?|web ?app|apps?|stores?|shop|bots?|scripts?|api|platform|plugin|portal|dashboard|develop\w*|build|integrat\w*|fix|bugs?|backend|frontend|saas|crm|automation|scraper)\b/i;
+
+function isDevProject(p) {
+  const jobs = p.jobs || [];
+  // хотя бы треть тегов — программирование (IT-категория и не из списка NOT_DEV_TAGS)
+  const dev = jobs.filter((jb) => IT_CATEGORIES.has(jb.category?.name) && !NOT_DEV_TAGS.has(jb.name)).length;
+  if (!dev || dev * 3 < jobs.length) return false;
+  const title = p.title || '';
+  if (NEVER_DEV_TITLE.test(title)) return false;
+  if (NOT_DEV_TITLE.test(title) && !DEV_TITLE.test(title.replace(new RegExp(NOT_DEV_TITLE, 'gi'), ' '))) return false;
+  return true;
+}
+
 const PAGES = 5;
 const PER_PAGE = 100;
 
@@ -18,11 +44,8 @@ async function fetchFreelancer() {
     const j = JSON.parse(await get(url));
     const projects = j.result?.projects || [];
     for (const p of projects) {
+      if (!isDevProject(p)) continue;
       const jobs = p.jobs || [];
-      // минимум половина тегов — из IT-категорий; иначе пролезают монтаж, логотипы, маркетинг
-      // (у них часто есть один IT-тег вроде «Adobe Premiere Pro» или «Digital Marketing»)
-      const itCount = jobs.filter((jb) => IT_CATEGORIES.has(jb.category?.name)).length;
-      if (!itCount || itCount * 2 < jobs.length) continue;
       const cur = p.currency || {};
       const toRub = (v) => (v && rate && cur.exchange_rate ? Math.round(v * cur.exchange_rate * rate) : null);
       const hourly = p.type === 'hourly';
@@ -50,3 +73,4 @@ async function fetchFreelancer() {
 }
 
 module.exports = fetchFreelancer;
+module.exports.isDevProject = isDevProject;
