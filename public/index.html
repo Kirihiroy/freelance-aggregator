@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Заказы — агрегатор</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --card: #fff; --text: #1c1e21; --muted: #6b7280; --border: #e3e5e8;
+    --accent: #2563eb; --price: #15803d; --new: #f59e0b;
+    --fl: #e11d48; --kwork: #16a34a; --frru: #7c3aed;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #121417; --card: #1c1f24; --text: #e6e8eb; --muted: #9aa1ab; --border: #2c3037;
+      --accent: #60a5fa; --price: #4ade80; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); }
+  header { position: sticky; top: 0; z-index: 5; background: var(--card); border-bottom: 1px solid var(--border); padding: 12px 16px; }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; max-width: 1000px; margin: 0 auto; }
+  .row + .row { margin-top: 10px; }
+  h1 { font-size: 18px; margin: 0 auto 0 0; }
+  input[type=text], input[type=number], select {
+    font: inherit; padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text);
+  }
+  input[type=text] { flex: 1 1 220px; }
+  input[type=number] { width: 110px; }
+  label.chk { display: inline-flex; gap: 5px; align-items: center; cursor: pointer; user-select: none; }
+  button { font: inherit; padding: 7px 14px; border: 0; border-radius: 8px; background: var(--accent); color: #fff; cursor: pointer; }
+  button:disabled { opacity: .6; cursor: wait; }
+  .status { font-size: 13px; color: var(--muted); }
+  .status .err { color: #dc2626; }
+  main { max-width: 1000px; margin: 0 auto; padding: 16px; }
+  .order { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; }
+  .order.new { border-left: 4px solid var(--new); }
+  .top { display: flex; gap: 12px; justify-content: space-between; align-items: baseline; }
+  .top a { color: var(--text); font-weight: 600; text-decoration: none; font-size: 16px; }
+  .top a:hover { color: var(--accent); }
+  .price { color: var(--price); font-weight: 700; white-space: nowrap; }
+  .price.none { color: var(--muted); font-weight: 400; }
+  .desc { color: var(--muted); margin: 6px 0 8px; overflow-wrap: anywhere; cursor: pointer;
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .desc.open { display: block; }
+  .meta { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--muted); }
+  .src { font-weight: 600; }
+  .src.FL\.ru { color: var(--fl); } .src.Kwork { color: var(--kwork); } .src.Freelance\.ru { color: var(--frru); }
+  .empty { text-align: center; color: var(--muted); padding: 40px 0; }
+</style>
+</head>
+<body>
+<header>
+  <div class="row">
+    <h1>IT-заказы</h1>
+    <span class="status" id="status">Загрузка…</span>
+    <button id="refresh">Обновить сейчас</button>
+  </div>
+  <div class="row">
+    <input type="text" id="q" placeholder="Поиск: python, бот, парсер… (несколько слов через запятую — любое из них)">
+    <select id="sort">
+      <option value="date">Сначала новые</option>
+      <option value="priceDesc">Сначала дорогие</option>
+      <option value="priceAsc">Сначала дешёвые</option>
+    </select>
+  </div>
+  <div class="row">
+    <span>Цена, ₽:</span>
+    <input type="number" id="pmin" placeholder="от" min="0" step="500">
+    <input type="number" id="pmax" placeholder="до" min="0" step="500">
+    <label class="chk"><input type="checkbox" id="noprice" checked> показывать без цены</label>
+    <span style="flex:1"></span>
+    <span id="sources"></span>
+  </div>
+</header>
+<main id="list"></main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const SOURCES = ['FL.ru', 'Kwork', 'Freelance.ru'];
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+
+let data = { orders: [], status: {} };
+const prevVisit = store.get('lastVisit', null);
+store.set('lastVisit', new Date().toISOString());
+
+// фильтры запоминаются между запусками
+const saved = store.get('filters', {});
+$('q').value = saved.q || '';
+$('pmin').value = saved.pmin || '';
+$('pmax').value = saved.pmax || '';
+$('noprice').checked = saved.noprice !== false;
+$('sort').value = saved.sort || 'date';
+const enabled = new Set(saved.sources || SOURCES);
+$('sources').innerHTML = SOURCES.map((s) =>
+  `<label class="chk"><input type="checkbox" data-src="${s}" ${enabled.has(s) ? 'checked' : ''}> <span class="src ${s}">${s}</span></label>`
+).join(' ');
+
+function saveFilters() {
+  store.set('filters', {
+    q: $('q').value, pmin: $('pmin').value, pmax: $('pmax').value, noprice: $('noprice').checked,
+    sort: $('sort').value, sources: [...enabled],
+  });
+}
+
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmt = (n) => n.toLocaleString('ru-RU');
+
+function ago(iso) {
+  if (!iso) return '';
+  const m = Math.round((Date.now() - new Date(iso)) / 60000);
+  if (m < 1) return 'только что';
+  if (m < 60) return `${m} мин назад`;
+  if (m < 1440) return `${Math.floor(m / 60)} ч назад`;
+  return new Date(iso).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
+
+function render() {
+  const words = $('q').value.toLowerCase().split(',').map((w) => w.trim()).filter(Boolean);
+  const pmin = parseFloat($('pmin').value) || 0;
+  const pmax = parseFloat($('pmax').value) || Infinity;
+  const noprice = $('noprice').checked;
+
+  let list = data.orders.filter((o) => {
+    if (!enabled.has(o.source)) return false;
+    if (o.price == null) { if (!noprice) return false; }
+    else {
+      const top = o.priceMax || o.price;
+      if (top < pmin || o.price > pmax) return false;
+    }
+    if (words.length) {
+      const text = (o.title + ' ' + o.description + ' ' + o.category).toLowerCase();
+      if (!words.some((w) => text.includes(w))) return false;
+    }
+    return true;
+  });
+
+  const s = $('sort').value;
+  const p = (o) => o.priceMax || o.price;
+  if (s === 'priceDesc') list.sort((a, b) => (p(b) ?? -1) - (p(a) ?? -1));
+  else if (s === 'priceAsc') list.sort((a, b) => (p(a) ?? Infinity) - (p(b) ?? Infinity));
+  else list.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+  $('list').innerHTML = list.length ? list.map((o) => {
+    const isNew = prevVisit && o.firstSeen > prevVisit;
+    const price = o.price == null ? '<span class="price none">цена не указана</span>'
+      : `<span class="price">${fmt(o.price)}${o.priceMax ? ' – ' + fmt(o.priceMax) : ''} ₽</span>`;
+    return `<div class="order${isNew ? ' new' : ''}">
+      <div class="top"><a href="${esc(o.url)}" target="_blank" rel="noopener">${esc(o.title)}</a>${price}</div>
+      ${o.description ? `<div class="desc" title="Нажми, чтобы развернуть">${esc(o.description)}</div>` : ''}
+      <div class="meta"><span class="src ${esc(o.source)}">${esc(o.source)}</span>
+        <span>${esc(o.category)}</span><span>${ago(o.date)}</span>
+        ${o.offers != null ? `<span>откликов: ${o.offers}</span>` : ''}
+        ${isNew ? '<span style="color:var(--new)">● новый</span>' : ''}</div>
+    </div>`;
+  }).join('') : '<div class="empty">Нет заказов под эти фильтры</div>';
+
+  const st = data.status || {};
+  const parts = SOURCES.map((n) => {
+    const x = (st.sources || {})[n];
+    if (!x) return `${n}: …`;
+    return x.ok ? `${n}: ${x.count}` : `<span class="err" title="${esc(x.error)}">${n}: ошибка</span>`;
+  });
+  $('status').innerHTML = `Показано ${list.length} из ${data.orders.length} · ${parts.join(' · ')}` +
+    (st.lastRun ? ` · обновлено ${ago(st.lastRun)}` : '');
+}
+
+async function load() {
+  try {
+    const r = await fetch('/api/orders');
+    data = await r.json();
+    render();
+  } catch { $('status').textContent = 'Сервер не отвечает — запущен ли start.bat?'; }
+}
+
+['q', 'pmin', 'pmax', 'noprice', 'sort'].forEach((id) => $(id).addEventListener('input', () => { saveFilters(); render(); }));
+$('sources').addEventListener('change', (e) => {
+  const s = e.target.dataset.src; if (!s) return;
+  e.target.checked ? enabled.add(s) : enabled.delete(s);
+  saveFilters(); render();
+});
+$('list').addEventListener('click', (e) => {
+  if (e.target.classList.contains('desc')) e.target.classList.toggle('open');
+});
+$('refresh').addEventListener('click', async () => {
+  $('refresh').disabled = true; $('refresh').textContent = 'Обновляю…';
+  try { await fetch('/api/refresh', { method: 'POST' }); } catch {}
+  await load();
+  $('refresh').disabled = false; $('refresh').textContent = 'Обновить сейчас';
+});
+
+load();
+setInterval(load, 60000);
+</script>
+</body>
+</html>

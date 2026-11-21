@@ -1,0 +1,15 @@
+{
+  "name": "freelance-aggregator",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Личный агрегатор IT-заказов с фриланс-бирж",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cheerio": "1.0.0",
+    "entities": "4.5.0"
+  }
+}
