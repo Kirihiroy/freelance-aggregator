@@ -76,6 +76,8 @@
   .flag { width: 20px; height: 15px; margin-right: 8px; vertical-align: -1px; border-radius: 2px; box-shadow: 0 0 0 1px var(--border); }
   .flag.globe { box-shadow: none; font-size: 14px; display: inline-block; width: 20px; text-align: center; }
   .meta a.trtoggle { color: var(--accent); text-decoration: none; }
+  .mt { display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 999px; font-size: 11px; font-weight: 500;
+    vertical-align: 2px; white-space: nowrap; color: var(--muted); border: 1px dashed var(--muted); cursor: help; }
   #sources { display: flex; flex-wrap: wrap; gap: 4px 12px; }
   .meta a { color: var(--muted); }
   .empty { text-align: center; color: var(--muted); padding: 40px 0; }
@@ -312,12 +314,15 @@ function render() {
     const tr = o.tr && $('translate').checked !== showOriginal.has(o.id) ? o.tr : null;
     const title = tr?.title || o.title;
     const desc = tr?.description || o.description;
-    const trLink = o.tr ? `<a href="#" class="trtoggle" data-id="${esc(o.id)}">${tr ? 'оригинал' : 'перевод'}</a>` : '';
+    const trLink = o.tr ? `<a href="#" class="trtoggle" data-id="${esc(o.id)}">${tr ? 'показать оригинал' : 'перевести'}</a>` : '';
+    // пометка у заголовка: текст переведён нейросетью, возможны ошибки
+    const mtBadge = tr ? `<span class="mt" title="Машинный перевод (нейросеть NLLB): возможны ошибки — перед откликом смотри оригинал${
+      o.description && tr.description == null ? '. Описание ещё не переведено' : ''}">машинный перевод</span>` : '';
     const price = o.price == null ? '<span class="price none">цена не указана</span>'
       : `<span class="price">${fmt(o.price)}${o.priceMax ? ' – ' + fmt(o.priceMax) : ''} ₽${o.priceUnit ? '/' + esc(o.priceUnit) : ''}` +
         `${o.priceNote ? ` <small>(${esc(o.priceNote)})</small>` : ''}</span>`;
     return `<div class="order${isNew ? ' new' : ''}">
-      <div class="top"><span>${flag(o)}<a href="${esc(o.url)}" target="_blank" rel="noopener">${esc(title)}</a></span>${price}</div>
+      <div class="top"><span>${flag(o)}<a href="${esc(o.url)}" target="_blank" rel="noopener">${esc(title)}</a>${mtBadge}</span>${price}</div>
       ${desc ? `<div class="desc" title="Нажми, чтобы развернуть">${esc(desc)}</div>` : ''}
       <div class="meta"><span class="src ${esc(o.source)}">${esc(o.source)}</span>
         ${trLink}
