@@ -22,8 +22,12 @@ End Function
 
 If Not ServerUp() Then
   sh.CurrentDirectory = dir
-  If Not fso.FolderExists(dir & "\node_modules") Then sh.Run "cmd /c npm install", 0, True
   If Not fso.FolderExists(dir & "\data") Then fso.CreateFolder dir & "\data"
+  ' install dependencies on first run and whenever package.json changed
+  Dim needInstall
+  needInstall = Not fso.FileExists(dir & "\node_modules\.package-lock.json")
+  If Not needInstall Then needInstall = fso.GetFile(dir & "\package.json").DateLastModified > fso.GetFile(dir & "\node_modules\.package-lock.json").DateLastModified
+  If needInstall Then sh.Run "cmd /c npm install --no-audit --no-fund >> data\server.log 2>&1", 0, True
   ' server output goes to data\server.log (useful if something breaks)
   sh.Run "cmd /c node server.js >> data\server.log 2>&1", 0, False
   For i = 1 To 40

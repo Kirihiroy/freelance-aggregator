@@ -9,6 +9,7 @@
     "start": "node server.js"
   },
   "dependencies": {
+    "@huggingface/transformers": "4.3.2",
     "cheerio": "1.0.0",
     "entities": "4.5.0"
   }

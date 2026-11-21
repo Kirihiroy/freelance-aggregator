@@ -6,6 +6,7 @@ const PORT = Number(process.env.PORT) || 3000;
 const REFRESH_MIN = 10;          // как часто обновлять заказы (минуты)
 const KEEP_DAYS = 14;            // сколько дней хранить старые заказы
 const DATA_FILE = path.join(__dirname, 'data', 'orders.json');
+const { translatePending, translatorState } = require('./translator');
 
 const SOURCES = {
   'FL.ru': require('./sources/fl'),
@@ -54,7 +55,9 @@ async function refresh() {
           // заказ уже пришёл с самой биржи — её данные полнее (цена, отклики), репост из Telegram не нужен
           if (prev && o.source === 'Telegram' && prev.source !== 'Telegram') continue;
           if (!prev) added++;
-          orders.set(o.id, { ...o, date: o.date || prev?.date || now, firstSeen: prev?.firstSeen || now });
+          // готовый перевод сохраняем, если текст заказа не поменялся
+          const tr = prev?.tr && prev.title === o.title && prev.description === o.description ? prev.tr : undefined;
+          orders.set(o.id, { ...o, date: o.date || prev?.date || now, firstSeen: prev?.firstSeen || now, ...(tr ? { tr } : {}) });
         }
         // источник может вернуть заказы под несколькими именами (Freelancer.com и «Freelancer.com · не IT»)
         const counts = { [name]: 0 };
@@ -75,6 +78,7 @@ async function refresh() {
   status.lastRun = now;
   status.running = false;
   save();
+  translatePending(orders, save); // в фоне, не ждём
 }
 
 function send(res, code, body, type = 'application/json; charset=utf-8') {
@@ -86,7 +90,7 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
   if (url.pathname === '/api/orders') {
     const list = [...orders.values()].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-    return send(res, 200, { status, orders: list });
+    return send(res, 200, { status: { ...status, translate: translatorState }, orders: list });
   }
   if (url.pathname === '/api/refresh' && req.method === 'POST') {
     await refresh();

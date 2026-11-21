@@ -67,6 +67,9 @@ async function fetchFreelancer() {
         category: jobs.slice(0, 3).map((jb) => jb.name).join(', '),
         date: new Date((p.time_submitted || p.submitdate) * 1000).toISOString(),
         offers: p.bid_stats?.bid_count ?? null,
+        // страну заказчика API без входа не отдаёт — берём страну валюты заказа.
+        // USD платят из любых стран, поэтому для него страну не указываем
+        country: cur.code && cur.code !== 'USD' && cur.country ? (cur.country === 'UK' ? 'GB' : cur.country) : null,
       });
     }
     if (projects.length < PER_PAGE) break;

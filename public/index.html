@@ -73,6 +73,9 @@
   .src.Reddit { color: var(--reddit); }
   .src.IT { color: var(--muted); } /* «Freelancer.com · не IT» */
   .price small { color: var(--muted); font-weight: 400; }
+  .flag { width: 20px; height: 15px; margin-right: 8px; vertical-align: -1px; border-radius: 2px; box-shadow: 0 0 0 1px var(--border); }
+  .flag.globe { box-shadow: none; font-size: 14px; display: inline-block; width: 20px; text-align: center; }
+  .meta a.trtoggle { color: var(--accent); text-decoration: none; }
   #sources { display: flex; flex-wrap: wrap; gap: 4px 12px; }
   .meta a { color: var(--muted); }
   .empty { text-align: center; color: var(--muted); padding: 40px 0; }
@@ -120,6 +123,7 @@
     <input type="number" id="pmin" placeholder="от" min="0" step="500">
     <input type="number" id="pmax" placeholder="до" min="0" step="500">
     <label class="chk"><input type="checkbox" id="noprice" checked> показывать без цены</label>
+    <label class="chk" title="Английские заказы переводятся на русский прямо на компьютере (нейросеть NLLB). У каждого заказа можно открыть оригинал."><input type="checkbox" id="translate" checked> переводить на русский</label>
     <span style="flex:1"></span>
     <span id="sources"></span>
   </div>
@@ -209,7 +213,25 @@ const FILTER_GROUPS = [
     ['English', (o) => (o.lang ? o.lang === 'en' : cyr(o) < lat(o))],
   ]],
 ];
-const chipText = (o) => o.title + ' ' + (o.description || '') + ' ' + (o.category || '');
+const chipText = (o) => o.title + ' ' + (o.description || '') + ' ' + (o.category || '') +
+  (o.tr ? ' ' + (o.tr.title || '') + ' ' + (o.tr.description || '') : '');
+
+// Флаг страны заказчика. Российские биржи — Россия; Freelancer.com — страна валюты заказа;
+// в остальных случаях страна неизвестна (🌐). Картинки, потому что Windows не рисует эмодзи-флаги.
+const RU_SOURCES = ['FL.ru', 'Kwork', 'Freelance.ru', 'Freelancejob', 'Workspace'];
+const regionName = (() => { try { const d = new Intl.DisplayNames(['ru'], { type: 'region' }); return (c) => d.of(c); } catch { return (c) => c; } })();
+function flag(o) {
+  let code = o.country || null, why = 'по валюте заказа';
+  if (!code && RU_SOURCES.includes(o.source)) { code = 'RU'; why = 'российская биржа'; }
+  if (!code) {
+    const hint = o.source === 'Freelancer.com' || o.source === 'Freelancer.com · не IT' ? 'заказ в долларах — страна неизвестна' : 'страна неизвестна';
+    return `<span class="flag globe" title="${hint}">🌐</span>`;
+  }
+  const c = code.toLowerCase();
+  return `<img class="flag" src="https://flagcdn.com/w40/${esc(c)}.png" alt="${esc(code)}" width="20" height="15"` +
+    ` title="${esc(regionName(code.toUpperCase()))} (${why})" loading="lazy">`;
+}
+const showOriginal = new Set(); // заказы, у которых нажали «оригинал» / «перевод»
 const chipKey = (gid, name) => gid + ':' + name;
 const chipMatch = (test, o) => (test instanceof RegExp ? test.test(chipText(o)) : test(o));
 const ALL_CHIP_KEYS = FILTER_GROUPS.flatMap(([gid, , items]) => items.map(([n]) => chipKey(gid, n)));
@@ -224,6 +246,7 @@ $('q').value = saved.q || '';
 $('pmin').value = saved.pmin || '';
 $('pmax').value = saved.pmax || '';
 $('noprice').checked = saved.noprice !== false;
+$('translate').checked = saved.translate !== false;
 $('sort').value = saved.sort || 'date';
 const enabled = new Set(saved.sources || SOURCES.filter((s) => !OFF_BY_DEFAULT.includes(s)));
 const chipsOn = new Set((saved.chips || []).filter((c) => ALL_CHIP_KEYS.includes(c)));
@@ -235,7 +258,7 @@ $('sources').innerHTML = SOURCES.map((s) =>
 
 function saveFilters() {
   store.set('filters', {
-    q: $('q').value, pmin: $('pmin').value, pmax: $('pmax').value, noprice: $('noprice').checked,
+    q: $('q').value, pmin: $('pmin').value, pmax: $('pmax').value, noprice: $('noprice').checked, translate: $('translate').checked,
     sort: $('sort').value, sources: [...enabled], knownSources: SOURCES, chips: [...chipsOn],
   });
 }
@@ -270,7 +293,7 @@ function render() {
       if (on.length && !on.some(([, test]) => chipMatch(test, o))) return false;
     }
     if (words.length) {
-      const text = (o.title + ' ' + o.description + ' ' + o.category).toLowerCase();
+      const text = (chipText(o) + ' ' + (o.tr?.title || '') + ' ' + (o.tr?.description || '')).toLowerCase();
       if (!words.some((w) => text.includes(w))) return false;
     }
     return true;
@@ -285,13 +308,19 @@ function render() {
 
   $('list').innerHTML = list.length ? list.map((o) => {
     const isNew = prevVisit && o.firstSeen > prevVisit;
+    // ссылка у заказа переключает его наоборот относительно общей галочки «переводить»
+    const tr = o.tr && $('translate').checked !== showOriginal.has(o.id) ? o.tr : null;
+    const title = tr?.title || o.title;
+    const desc = tr?.description || o.description;
+    const trLink = o.tr ? `<a href="#" class="trtoggle" data-id="${esc(o.id)}">${tr ? 'оригинал' : 'перевод'}</a>` : '';
     const price = o.price == null ? '<span class="price none">цена не указана</span>'
       : `<span class="price">${fmt(o.price)}${o.priceMax ? ' – ' + fmt(o.priceMax) : ''} ₽${o.priceUnit ? '/' + esc(o.priceUnit) : ''}` +
         `${o.priceNote ? ` <small>(${esc(o.priceNote)})</small>` : ''}</span>`;
     return `<div class="order${isNew ? ' new' : ''}">
-      <div class="top"><a href="${esc(o.url)}" target="_blank" rel="noopener">${esc(o.title)}</a>${price}</div>
-      ${o.description ? `<div class="desc" title="Нажми, чтобы развернуть">${esc(o.description)}</div>` : ''}
+      <div class="top"><span>${flag(o)}<a href="${esc(o.url)}" target="_blank" rel="noopener">${esc(title)}</a></span>${price}</div>
+      ${desc ? `<div class="desc" title="Нажми, чтобы развернуть">${esc(desc)}</div>` : ''}
       <div class="meta"><span class="src ${esc(o.source)}">${esc(o.source)}</span>
+        ${trLink}
         ${o.tgUrl ? `<a href="${esc(o.tgUrl)}" target="_blank" rel="noopener">${esc(o.category)}</a>` : `<span>${esc(o.category)}</span>`}
         <span>${ago(o.date)}</span>
         ${o.offers != null ? `<span>откликов: ${o.offers}</span>` : ''}
@@ -306,8 +335,11 @@ function render() {
     if (x.disabled) return `<span title="Нужен ключ API — см. README">${n}: не настроен</span>`;
     return x.ok ? `${n}: ${x.count}` : `<span class="err" title="${esc(x.error)}">${n}: ошибка</span>`;
   });
+  const t = st.translate || {};
+  const trStatus = !t.enabled ? '' : t.error ? ` · <span class="err" title="${esc(t.error)}">перевод: ошибка</span>`
+    : t.loading ? ' · перевод: загрузка модели…' : t.running && t.pending ? ` · перевод: осталось ${t.pending}` : '';
   $('status').innerHTML = `Показано ${list.length} из ${data.orders.length} · ${parts.join(' · ')}` +
-    (st.lastRun ? ` · обновлено ${ago(st.lastRun)}` : '');
+    (st.lastRun ? ` · обновлено ${ago(st.lastRun)}` : '') + trStatus;
 }
 
 // счётчик на кнопке — сколько заказов этой темы среди включённых площадок
@@ -332,7 +364,7 @@ async function load() {
   } catch { $('status').textContent = 'Сервер не отвечает — запущен ли start.bat?'; }
 }
 
-['q', 'pmin', 'pmax', 'noprice', 'sort'].forEach((id) => $(id).addEventListener('input', () => { saveFilters(); render(); }));
+['q', 'pmin', 'pmax', 'noprice', 'translate', 'sort'].forEach((id) => $(id).addEventListener('input', () => { saveFilters(); render(); }));
 $('sources').addEventListener('change', (e) => {
   const s = e.target.dataset.src; if (!s) return;
   e.target.checked ? enabled.add(s) : enabled.delete(s);
@@ -347,6 +379,12 @@ $('chips').addEventListener('click', (e) => {
 });
 $('list').addEventListener('click', (e) => {
   if (e.target.classList.contains('desc')) e.target.classList.toggle('open');
+  if (e.target.classList.contains('trtoggle')) {
+    e.preventDefault();
+    const id = e.target.dataset.id;
+    showOriginal.has(id) ? showOriginal.delete(id) : showOriginal.add(id);
+    render();
+  }
 });
 $('refresh').addEventListener('click', async () => {
   $('refresh').disabled = true; $('refresh').textContent = 'Обновляю…';

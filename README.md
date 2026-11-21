@@ -10,6 +10,8 @@ A self-hosted web app that collects fresh IT / software-development gigs from si
 
 - **8 sources, one feed:** FL.ru, Kwork, Freelance.ru, Freelancejob.ru, Workspace.ru, Freelancer.com, Reddit and public Telegram channels
 - **Normalized budgets:** prices in USD, EUR, INR, etc. are converted to a single currency using the daily Central Bank rate; the original amount is shown next to it
+- **Offline auto-translation:** English gigs are translated into Russian locally with Meta's NLLB-200 model via [transformers.js](https://huggingface.co/docs/transformers.js) (no external API, no limits; ~0.9 GB model downloaded once to `data/models`; set `TRANSLATE=0` to disable). The original is one click away
+- **Client country flag:** Russian marketplaces → Russia; Freelancer.com → country of the project currency (USD is shown as unknown)
 - **De-duplication:** when a Telegram channel reposts a gig from a marketplace, it appears only once
 - **Budget filter** (min / max), with an option to hide gigs without a stated budget
 - **Keyword search** with OR-logic (`python, bot, scraper`)
