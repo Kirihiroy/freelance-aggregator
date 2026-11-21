@@ -48,6 +48,7 @@
   .src.Telegram { color: var(--tg); } .src.Freelancejob { color: var(--fj); }
   .src.Workspace { color: var(--ws); } .src.Freelancer\.com { color: var(--flcom); }
   .src.Reddit { color: #ff4500; }
+  .src.IT { color: var(--muted); } /* «Freelancer.com · не IT» */
   .price small { color: var(--muted); font-weight: 400; }
   #sources { display: flex; flex-wrap: wrap; gap: 4px 12px; }
   .meta a { color: var(--muted); }
@@ -107,7 +108,9 @@
 
 <script>
 const $ = (id) => document.getElementById(id);
-const SOURCES = ['FL.ru', 'Kwork', 'Freelance.ru', 'Freelancejob', 'Workspace', 'Freelancer.com', 'Reddit', 'Telegram'];
+const SOURCES = ['FL.ru', 'Kwork', 'Freelance.ru', 'Freelancejob', 'Workspace', 'Freelancer.com', 'Freelancer.com · не IT', 'Reddit', 'Telegram'];
+// эти источники выключены, пока сам не включишь галочку
+const OFF_BY_DEFAULT = ['Freelancer.com · не IT'];
 const store = {
   get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
@@ -195,10 +198,10 @@ $('pmin').value = saved.pmin || '';
 $('pmax').value = saved.pmax || '';
 $('noprice').checked = saved.noprice !== false;
 $('sort').value = saved.sort || 'date';
-const enabled = new Set(saved.sources || SOURCES);
+const enabled = new Set(saved.sources || SOURCES.filter((s) => !OFF_BY_DEFAULT.includes(s)));
 const chipsOn = new Set((saved.chips || []).filter((c) => ALL_CHIP_KEYS.includes(c)));
 // источники, появившиеся после сохранения фильтров, включены по умолчанию
-for (const s of SOURCES) if (!(saved.knownSources || []).includes(s) && saved.sources) enabled.add(s);
+for (const s of SOURCES) if (!(saved.knownSources || []).includes(s) && saved.sources && !OFF_BY_DEFAULT.includes(s)) enabled.add(s);
 $('sources').innerHTML = SOURCES.map((s) =>
   `<label class="chk"><input type="checkbox" data-src="${s}" ${enabled.has(s) ? 'checked' : ''}> <span class="src ${s}">${s}</span></label>`
 ).join(' ');

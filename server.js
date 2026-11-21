@@ -56,8 +56,14 @@ async function refresh() {
           if (!prev) added++;
           orders.set(o.id, { ...o, date: o.date || prev?.date || now, firstSeen: prev?.firstSeen || now });
         }
-        status.sources[name] = { ok: true, count: list.length, added, at: now };
-        console.log(`[${new Date().toLocaleTimeString()}] ${name}: ${list.length} заказов, новых ${added}`);
+        // источник может вернуть заказы под несколькими именами (Freelancer.com и «Freelancer.com · не IT»)
+        const counts = { [name]: 0 };
+        for (const o of list) counts[o.source] = (counts[o.source] || 0) + 1;
+        for (const [src, count] of Object.entries(counts)) {
+          status.sources[src] = { ok: true, count, ...(src === name ? { added } : {}), at: now };
+        }
+        console.log(`[${new Date().toLocaleTimeString()}] ${name}: ${counts[name]} заказов, новых ${added}` +
+          Object.entries(counts).filter(([s]) => s !== name).map(([s, c]) => `; ${s}: ${c}`).join(''));
       } catch (e) {
         status.sources[name] = { ok: false, error: e.message, at: now };
         console.error(`[${new Date().toLocaleTimeString()}] ${name}: ошибка — ${e.message}`);

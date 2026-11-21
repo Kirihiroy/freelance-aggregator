@@ -29,6 +29,7 @@ function isDevProject(p) {
   return true;
 }
 
+const NON_IT_SOURCE = 'Freelancer.com · не IT';
 const PAGES = 5;
 const PER_PAGE = 100;
 
@@ -44,7 +45,8 @@ async function fetchFreelancer() {
     const j = JSON.parse(await get(url));
     const projects = j.result?.projects || [];
     for (const p of projects) {
-      if (!isDevProject(p)) continue;
+      // не-IT заказы не выбрасываем, а кладём в отдельный источник (в интерфейсе он выключен по умолчанию)
+      const isDev = isDevProject(p);
       const jobs = p.jobs || [];
       const cur = p.currency || {};
       const toRub = (v) => (v && rate && cur.exchange_rate ? Math.round(v * cur.exchange_rate * rate) : null);
@@ -54,7 +56,7 @@ async function fetchFreelancer() {
       const orig = min ? `${SIGN[cur.code] || cur.code + ' '}${min}${max && max !== min ? '–' + max : ''}${hourly ? '/час' : ''}` : '';
       out.push({
         id: 'flcom:' + p.id,
-        source: 'Freelancer.com',
+        source: isDev ? 'Freelancer.com' : NON_IT_SOURCE,
         title: clean(p.title),
         description: clean(p.preview_description || p.description).slice(0, 600),
         url: `https://www.freelancer.com/projects/${p.seo_url}`,
