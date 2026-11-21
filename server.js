@@ -11,6 +11,7 @@ const SOURCES = {
   'FL.ru': require('./sources/fl'),
   'Kwork': require('./sources/kwork'),
   'Freelance.ru': require('./sources/freelanceru'),
+  'Telegram': require('./sources/telegram'),
 };
 
 let orders = new Map();
@@ -41,6 +42,8 @@ async function refresh() {
         let added = 0;
         for (const o of list) {
           const prev = orders.get(o.id);
+          // заказ уже пришёл с самой биржи — её данные полнее (цена, отклики), репост из Telegram не нужен
+          if (prev && o.source === 'Telegram' && prev.source !== 'Telegram') continue;
           if (!prev) added++;
           orders.set(o.id, { ...o, date: o.date || prev?.date || now, firstSeen: prev?.firstSeen || now });
         }

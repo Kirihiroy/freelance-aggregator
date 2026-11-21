@@ -1,0 +1,10 @@
+{
+  "_help": "Публичные Telegram-каналы с заказами. username — имя канала без @. itFilter: true — брать только посты с IT-словами (для смешанных каналов). Канал должен открываться по адресу https://t.me/s/<username>.",
+  "channels": [
+    { "username": "job_developer",    "itFilter": false, "note": "Фриланс для разработчиков — IT-заказы, многие продублированы с Kwork" },
+    { "username": "zakazy_it",        "itFilter": true,  "note": "LeadRadar: заказы IT и дизайна, контакты заказчика — через их бота" },
+    { "username": "freelancetaverna", "itFilter": true,  "note": "Фриланс Таверна — смешанный" },
+    { "username": "workk_on",         "itFilter": true,  "note": "Work On — смешанный" },
+    { "username": "digitaltender",    "itFilter": true,  "note": "DIGITAL Tender — смешанный" }
+  ]
+}

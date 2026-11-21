@@ -8,7 +8,7 @@
   :root {
     --bg: #f4f5f7; --card: #fff; --text: #1c1e21; --muted: #6b7280; --border: #e3e5e8;
     --accent: #2563eb; --price: #15803d; --new: #f59e0b;
-    --fl: #e11d48; --kwork: #16a34a; --frru: #7c3aed;
+    --fl: #e11d48; --kwork: #16a34a; --frru: #7c3aed; --tg: #0284c7;
   }
   @media (prefers-color-scheme: dark) {
     :root { --bg: #121417; --card: #1c1f24; --text: #e6e8eb; --muted: #9aa1ab; --border: #2c3037;
@@ -44,6 +44,8 @@
   .meta { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--muted); }
   .src { font-weight: 600; }
   .src.FL\.ru { color: var(--fl); } .src.Kwork { color: var(--kwork); } .src.Freelance\.ru { color: var(--frru); }
+  .src.Telegram { color: var(--tg); }
+  .meta a { color: var(--muted); }
   .empty { text-align: center; color: var(--muted); padding: 40px 0; }
 </style>
 </head>
@@ -75,7 +77,7 @@
 
 <script>
 const $ = (id) => document.getElementById(id);
-const SOURCES = ['FL.ru', 'Kwork', 'Freelance.ru'];
+const SOURCES = ['FL.ru', 'Kwork', 'Freelance.ru', 'Telegram'];
 const store = {
   get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
@@ -93,6 +95,8 @@ $('pmax').value = saved.pmax || '';
 $('noprice').checked = saved.noprice !== false;
 $('sort').value = saved.sort || 'date';
 const enabled = new Set(saved.sources || SOURCES);
+// источники, появившиеся после сохранения фильтров, включены по умолчанию
+for (const s of SOURCES) if (!(saved.knownSources || []).includes(s) && saved.sources) enabled.add(s);
 $('sources').innerHTML = SOURCES.map((s) =>
   `<label class="chk"><input type="checkbox" data-src="${s}" ${enabled.has(s) ? 'checked' : ''}> <span class="src ${s}">${s}</span></label>`
 ).join(' ');
@@ -100,7 +104,7 @@ $('sources').innerHTML = SOURCES.map((s) =>
 function saveFilters() {
   store.set('filters', {
     q: $('q').value, pmin: $('pmin').value, pmax: $('pmax').value, noprice: $('noprice').checked,
-    sort: $('sort').value, sources: [...enabled],
+    sort: $('sort').value, sources: [...enabled], knownSources: SOURCES,
   });
 }
 
@@ -150,7 +154,8 @@ function render() {
       <div class="top"><a href="${esc(o.url)}" target="_blank" rel="noopener">${esc(o.title)}</a>${price}</div>
       ${o.description ? `<div class="desc" title="Нажми, чтобы развернуть">${esc(o.description)}</div>` : ''}
       <div class="meta"><span class="src ${esc(o.source)}">${esc(o.source)}</span>
-        <span>${esc(o.category)}</span><span>${ago(o.date)}</span>
+        ${o.tgUrl ? `<a href="${esc(o.tgUrl)}" target="_blank" rel="noopener">${esc(o.category)}</a>` : `<span>${esc(o.category)}</span>`}
+        <span>${ago(o.date)}</span>
         ${o.offers != null ? `<span>откликов: ${o.offers}</span>` : ''}
         ${isNew ? '<span style="color:var(--new)">● новый</span>' : ''}</div>
     </div>`;
