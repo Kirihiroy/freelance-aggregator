@@ -96,6 +96,16 @@ const server = http.createServer(async (req, res) => {
     await refresh();
     return send(res, 200, { ok: true });
   }
+  // иконка и описание приложения — чтобы у окна была своя иконка на панели задач
+  if (url.pathname === '/icon.png') return send(res, 200, fs.readFileSync(path.join(__dirname, 'app', 'icon.png')), 'image/png');
+  if (url.pathname === '/favicon.ico') return send(res, 200, fs.readFileSync(path.join(__dirname, 'app', 'icon.ico')), 'image/x-icon');
+  if (url.pathname === '/manifest.webmanifest') {
+    return send(res, 200, {
+      name: 'IT-заказы', short_name: 'IT-заказы', start_url: '/', display: 'standalone',
+      background_color: '#f4f5f7', theme_color: '#2563eb',
+      icons: [{ src: '/icon.png', sizes: '256x256', type: 'image/png', purpose: 'any' }],
+    }, 'application/manifest+json; charset=utf-8');
+  }
   if (url.pathname === '/' || url.pathname === '/index.html') {
     return send(res, 200, fs.readFileSync(path.join(__dirname, 'public', 'index.html')), 'text/html; charset=utf-8');
   }
