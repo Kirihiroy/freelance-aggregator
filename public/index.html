@@ -52,6 +52,14 @@
   #sources { display: flex; flex-wrap: wrap; gap: 4px 12px; }
   .meta a { color: var(--muted); }
   .empty { text-align: center; color: var(--muted); padding: 40px 0; }
+  #manual { width: 100%; font-size: 14px; }
+  #manual summary { cursor: pointer; color: var(--muted); user-select: none; }
+  #manualLinks { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 4px 24px; margin-top: 8px;
+    max-height: 50vh; overflow-y: auto; }
+  #manualLinks h3 { font-size: 13px; margin: 6px 0 2px; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+  #manualLinks a { color: var(--accent); text-decoration: none; }
+  #manualLinks a:hover { text-decoration: underline; }
+  #manualLinks .note { color: var(--muted); font-size: 12px; }
 </style>
 </head>
 <body>
@@ -77,6 +85,12 @@
     <span style="flex:1"></span>
     <span id="sources"></span>
   </div>
+  <div class="row">
+    <details id="manual">
+      <summary>Площадки, которые нужно смотреть вручную</summary>
+      <div id="manualLinks"></div>
+    </details>
+  </div>
 </header>
 <main id="list"></main>
 
@@ -87,6 +101,39 @@ const store = {
   get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
 };
+
+// Площадки, которые нельзя собирать автоматически (нужен ключ, вход или стоит защита от ботов).
+// Это просто ссылки на поиск: открываются в браузере, как если бы ты зашёл сам. Можно дописывать свои.
+const MANUAL_LINKS = [
+  ['Reddit', [
+    ['r/forhire — [Hiring] про ботов, Python, сайты', 'https://www.reddit.com/r/forhire/search/?q=flair%3AHiring+%28bot+OR+telegram+OR+python+OR+website%29&restrict_sr=1&sort=new'],
+    ['r/forhire — все [Hiring]', 'https://www.reddit.com/r/forhire/search/?q=flair%3AHiring&restrict_sr=1&sort=new'],
+    ['r/slavelabour — мелкие задачи', 'https://www.reddit.com/r/slavelabour/new/', 'дёшево, но легко получить первые отзывы'],
+    ['r/freelance_forhire — [Hiring]', 'https://www.reddit.com/r/freelance_forhire/search/?q=hiring&restrict_sr=1&sort=new'],
+    ['r/gameDevClassifieds — [Paid]', 'https://www.reddit.com/r/gameDevClassifieds/search/?q=flair%3APaid&restrict_sr=1&sort=new'],
+  ]],
+  ['Иностранные биржи', [
+    ['Upwork — Telegram bot', 'https://www.upwork.com/nx/search/jobs/?q=telegram%20bot&sort=recency'],
+    ['Upwork — Python script', 'https://www.upwork.com/nx/search/jobs/?q=python%20script&sort=recency'],
+    ['PeoplePerHour — Telegram bot', 'https://www.peopleperhour.com/freelance-jobs?q=telegram%20bot'],
+    ['Workana — Telegram bot', 'https://www.workana.com/jobs?language=en&query=telegram%20bot'],
+    ['Guru — Telegram bot', 'https://www.guru.com/d/jobs/q/telegram-bot/'],
+    ['Fiverr — гиги «Telegram bot»', 'https://www.fiverr.com/search/gigs?query=telegram%20bot', 'тут заказчики сами выбирают продавца — смотри цены и описания конкурентов'],
+  ]],
+  ['Русскоязычные', [
+    ['Freelancehunt — проекты', 'https://freelancehunt.com/projects'],
+    ['Weblancer — заказы', 'https://www.weblancer.net/freelance/'],
+  ]],
+];
+
+function renderManualLinks() {
+  $('manualLinks').innerHTML = MANUAL_LINKS.map(([group, links]) =>
+    `<div><h3>${esc(group)}</h3>${links.map(([title, url, note]) =>
+      `<div><a href="${esc(url)}" target="_blank" rel="noopener">${esc(title)}</a>${note ? ` <span class="note">— ${esc(note)}</span>` : ''}</div>`
+    ).join('')}</div>`).join('');
+  $('manual').open = store.get('manualOpen', false);
+  $('manual').addEventListener('toggle', () => store.set('manualOpen', $('manual').open));
+}
 
 let data = { orders: [], status: {} };
 const prevVisit = store.get('lastVisit', null);
@@ -202,6 +249,7 @@ $('refresh').addEventListener('click', async () => {
   $('refresh').disabled = false; $('refresh').textContent = 'Обновить сейчас';
 });
 
+renderManualLinks();
 load();
 setInterval(load, 60000);
 </script>
