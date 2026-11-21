@@ -39,4 +39,21 @@ const clean = (s) =>
     .replace(/\s+/g, ' ')
     .trim();
 
-module.exports = { get, sleep, parsePrice, moscowToIso, clean };
+// IT-слова — для источников, где IT смешано с другими заказами (Telegram, Freelancejob)
+const IT_WORDS = new RegExp(
+  [
+    // (?<![а-яё]) — начало слова: иначе «бот» найдётся в «работа»
+    'сайт', 'лендинг', '(?<![а-яё])бот', 'парс', 'скрипт', 'программист', 'программирован', 'разработчик',
+    '(?:верст|вёрст)\\S* (?:сайт|лендинг|страниц|макет|html|писем|email)', '(?<![а-яё])код',
+    'python', 'php', 'javascript', '\\bjs\\b', 'typescript', 'react', 'vue', 'node', 'django', 'laravel',
+    'frontend', 'backend', 'фронтенд', 'бэкенд', 'бекенд', 'fullstack', 'фулстек', 'devops', '\\bqa\\b', 'тестировщ',
+    '1с', '1c', 'битрикс', 'bitrix', 'wordpress', 'tilda', 'тильд', 'webflow', 'figma', 'ui/ux', 'интерфейс',
+    '\\bapi\\b', 'интеграц', 'amocrm', 'n8n', 'make\\.com', 'llm', 'chatgpt', 'нейросет\\S* (?:для|в|на)',
+    'мобильн\\S* приложени', 'веб-приложени', 'android', '\\bios\\b', 'unity', 'базы? данных', 'sql', 'хостинг',
+    'google apps script', '\\bvba\\b', '(?<![а-яё])ит(?![а-яё])', '\\bit\\b', 'админ\\S* (?:сервер|сайт|linux)',
+    'kubernetes', 'docker', 'linux', 'сервер',
+  ].join('|'),
+  'i'
+);
+
+module.exports = { get, sleep, parsePrice, moscowToIso, clean, IT_WORDS };

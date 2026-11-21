@@ -3,24 +3,9 @@
 const fs = require('fs');
 const path = require('path');
 const cheerio = require('cheerio');
-const { get, sleep, parsePrice, clean } = require('./common');
+const { get, sleep, parsePrice, clean, IT_WORDS } = require('./common');
 
 const CONFIG = path.join(__dirname, '..', 'channels.json');
-
-// для смешанных каналов: пост должен содержать хоть одно из этих слов
-const IT_WORDS = new RegExp(
-  [
-    // (?<![а-яё]) — начало слова: иначе «бот» найдётся в «работа»
-    'сайт', 'лендинг', '(?<![а-яё])бот', 'парс', 'скрипт', 'программист', 'программирован', 'разработ', 'верст', 'вёрст', '(?<![а-яё])код',
-    'python', 'php', 'javascript', '\\bjs\\b', 'typescript', 'react', 'vue', 'node', 'django', 'laravel',
-    'frontend', 'backend', 'фронтенд', 'бэкенд', 'бекенд', 'fullstack', 'фулстек', 'devops', '\\bqa\\b', 'тестировщ',
-    '1с', '1c', 'битрикс', 'bitrix', 'wordpress', 'tilda', 'тильд', 'webflow', 'figma', 'ui/ux', 'интерфейс',
-    '\\bapi\\b', 'интеграц', 'amocrm', 'n8n', 'make\\.com', 'llm', 'chatgpt', 'нейросет\\S* (?:для|в|на)',
-    'мобильн\\S* приложени', 'веб-приложени', 'android', '\\bios\\b', 'unity', 'базы? данных', 'sql', 'хостинг',
-    'google apps script', '\\bvba\\b', '(?<![а-яё])ит(?![а-яё])', '\\bit\\b', 'админ\\S* (?:сервер|сайт|linux)',
-  ].join('|'),
-  'i'
-);
 
 // посты, где фрилансер предлагает себя, а не заказчик ищет исполнителя
 const NOT_ORDER = /#резюме|(?<![а-яё])резюме(?![а-яё])|ищу (?:проекты|заказы|работу|клиентов)|делаю сайты|возьму (?:в работу|заказ)|мои услуги|портфолио:|меня зовут|ищете [^.!?]{0,40}(?:разработчик|программист|специалист)|мы создаем|мы создаём|предлагаю услуги/i;

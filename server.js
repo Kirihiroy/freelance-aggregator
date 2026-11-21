@@ -11,6 +11,9 @@ const SOURCES = {
   'FL.ru': require('./sources/fl'),
   'Kwork': require('./sources/kwork'),
   'Freelance.ru': require('./sources/freelanceru'),
+  'Freelancejob': require('./sources/freelancejob'),
+  'Workspace': require('./sources/workspace'),
+  'Freelancer.com': require('./sources/freelancer'),
   'Telegram': require('./sources/telegram'),
 };
 
