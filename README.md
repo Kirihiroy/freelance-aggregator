@@ -99,4 +99,4 @@ Every source is a single async function that returns gigs in a common shape (`id
 
 Node.js (built-in `http` and `fetch`, no framework), [cheerio](https://cheerio.js.org/) for HTML/RSS parsing, vanilla HTML/CSS/JS front end with no build step.
 
-> The UI is currently in Russian, since most of the sources are Russian-language marketplaces.
+The interface is available in **Russian and English** (RU / EN switch in the header, remembered between sessions; `?lang=en` in the URL also works). Gig texts are shown as published on the source site.

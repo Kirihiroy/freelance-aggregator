@@ -106,34 +106,37 @@
 <body>
 <header>
   <div class="row">
-    <h1>IT-заказы</h1>
-    <span class="theme" id="theme" title="Тема">
-      <button data-t="light" title="Светлая">☀️</button><button data-t="dark" title="Тёмная">🌙</button><button data-t="auto" title="Как в системе">🖥️</button>
+    <h1 data-i18n="appName">IT-заказы</h1>
+    <span class="theme" id="theme" data-i18n-title="theme">
+      <button data-t="light" data-i18n-title="themeLight">☀️</button><button data-t="dark" data-i18n-title="themeDark">🌙</button><button data-t="auto" data-i18n-title="themeAuto">🖥️</button>
     </span>
-    <span class="status" id="status">Загрузка…</span>
-    <button id="refresh">Обновить сейчас</button>
+    <span class="theme" id="lang" data-i18n-title="language">
+      <button data-l="ru">RU</button><button data-l="en">EN</button>
+    </span>
+    <span class="status" id="status" data-i18n="loading">Загрузка…</span>
+    <button id="refresh" data-i18n="refresh">Обновить сейчас</button>
   </div>
   <div class="row">
-    <input type="text" id="q" placeholder="Поиск: python, бот, парсер… (несколько слов через запятую — любое из них)">
+    <input type="text" id="q" data-i18n-placeholder="searchPh">
     <select id="sort">
-      <option value="date">Сначала новые</option>
-      <option value="priceDesc">Сначала дорогие</option>
-      <option value="priceAsc">Сначала дешёвые</option>
+      <option value="date" data-i18n="sortDate">Сначала новые</option>
+      <option value="priceDesc" data-i18n="sortDesc">Сначала дорогие</option>
+      <option value="priceAsc" data-i18n="sortAsc">Сначала дешёвые</option>
     </select>
   </div>
   <div class="row" id="chips"></div>
   <div class="row">
-    <span>Цена, ₽:</span>
-    <input type="number" id="pmin" placeholder="от" min="0" step="500">
-    <input type="number" id="pmax" placeholder="до" min="0" step="500">
-    <label class="chk"><input type="checkbox" id="noprice" checked> показывать без цены</label>
-    <label class="chk" title="Английские заказы переводятся на русский прямо на компьютере (нейросеть NLLB). У каждого заказа можно открыть оригинал."><input type="checkbox" id="translate" checked> переводить на русский</label>
+    <span data-i18n="priceLbl">Цена, ₽:</span>
+    <input type="number" id="pmin" data-i18n-placeholder="from" min="0" step="500">
+    <input type="number" id="pmax" data-i18n-placeholder="to" min="0" step="500">
+    <label class="chk"><input type="checkbox" id="noprice" checked> <span data-i18n="noPrice">показывать без цены</span></label>
+    <label class="chk" data-i18n-title="translateHint"><input type="checkbox" id="translate" checked> <span data-i18n="translate">переводить на русский</span></label>
     <span style="flex:1"></span>
     <span id="sources"></span>
   </div>
   <div class="row">
     <details id="manual">
-      <summary>Площадки, которые нужно смотреть вручную</summary>
+      <summary data-i18n="manual">Площадки, которые нужно смотреть вручную</summary>
       <div id="manualLinks"></div>
     </details>
   </div>
@@ -150,38 +153,115 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
 };
 
+// ---------- язык интерфейса (RU / EN) ----------
+// Переводится только интерфейс; тексты заказов остаются как на площадке.
+const I18N = {
+  ru: {
+    appName: 'IT-заказы', theme: 'Тема', themeLight: 'Светлая', themeDark: 'Тёмная', themeAuto: 'Как в системе',
+    language: 'Язык интерфейса', loading: 'Загрузка…', refresh: 'Обновить сейчас', refreshing: 'Обновляю…',
+    searchPh: 'Поиск: python, бот, парсер… (несколько слов через запятую — любое из них)',
+    sortDate: 'Сначала новые', sortDesc: 'Сначала дорогие', sortAsc: 'Сначала дешёвые',
+    priceLbl: 'Цена, ₽:', from: 'от', to: 'до', noPrice: 'показывать без цены',
+    translate: 'переводить на русский',
+    translateHint: 'Английские заказы переводятся на русский прямо на компьютере (нейросеть NLLB). У каждого заказа можно открыть оригинал.',
+    manual: 'Площадки, которые нужно смотреть вручную',
+    g_dir: 'Направление', g_lang: 'Язык', g_human: 'Язык заказа', resetAll: 'сбросить всё',
+    noPriceTag: 'цена не указана', perHour: 'час', offers: 'откликов', isNew: '● новый', expand: 'Нажми, чтобы развернуть',
+    showOriginal: 'показать оригинал', showTranslation: 'перевести', mt: 'машинный перевод',
+    mtHint: 'Машинный перевод (нейросеть NLLB): возможны ошибки — перед откликом смотри оригинал',
+    mtDescPending: '. Описание ещё не переведено',
+    empty: 'Нет заказов под эти фильтры',
+    shown: (a, b) => `Показано ${a} из ${b}`, updated: 'обновлено',
+    notConfigured: 'не настроен', needKey: 'Нужен ключ API — см. README', error: 'ошибка',
+    trError: 'перевод: ошибка', trLoading: 'перевод: загрузка модели…', trLeft: (n) => `перевод: осталось ${n}`,
+    noServer: 'Сервер не отвечает — открой ярлык «IT-заказы» или запусти start.bat',
+    justNow: 'только что', minAgo: (m) => `${m} мин назад`, hAgo: (h) => `${h} ч назад`,
+    byCurrency: 'по валюте заказа', ruMarket: 'российская биржа',
+    usdUnknown: 'заказ в долларах — страна неизвестна', unknownCountry: 'страна неизвестна',
+    nonIT: 'не IT', locale: 'ru-RU',
+  },
+  en: {
+    appName: 'IT gigs', theme: 'Theme', themeLight: 'Light', themeDark: 'Dark', themeAuto: 'System',
+    language: 'Interface language', loading: 'Loading…', refresh: 'Refresh now', refreshing: 'Refreshing…',
+    searchPh: 'Search: python, bot, scraper… (comma-separated words — any of them)',
+    sortDate: 'Newest first', sortDesc: 'Highest budget', sortAsc: 'Lowest budget',
+    priceLbl: 'Budget, ₽:', from: 'from', to: 'to', noPrice: 'show gigs without budget',
+    translate: 'Russian translation',
+    translateHint: 'English gigs are machine-translated into Russian locally (NLLB model). The original is always one click away.',
+    manual: 'Sites to check manually',
+    g_dir: 'Area', g_lang: 'Language', g_human: 'Gig language', resetAll: 'reset all',
+    noPriceTag: 'no budget', perHour: 'hr', offers: 'bids', isNew: '● new', expand: 'Click to expand',
+    showOriginal: 'show original', showTranslation: 'translate', mt: 'machine translation',
+    mtHint: 'Machine translation (NLLB model): may contain mistakes — read the original before bidding',
+    mtDescPending: '. Description is not translated yet',
+    empty: 'No gigs match these filters',
+    shown: (a, b) => `Showing ${a} of ${b}`, updated: 'updated',
+    notConfigured: 'not configured', needKey: 'API key required — see README', error: 'error',
+    trError: 'translation: error', trLoading: 'translation: loading model…', trLeft: (n) => `translation: ${n} left`,
+    noServer: 'Server is not responding — open the "IT-заказы" shortcut or run start.bat',
+    justNow: 'just now', minAgo: (m) => `${m} min ago`, hAgo: (h) => `${h} h ago`,
+    byCurrency: 'by gig currency', ruMarket: 'Russian marketplace',
+    usdUnknown: 'USD gig — country unknown', unknownCountry: 'country unknown',
+    nonIT: 'non-IT', locale: 'en-US',
+  },
+};
+// ?lang=en в адресе тоже переключает язык (удобно для ссылок и скриншотов)
+const urlLang = new URLSearchParams(location.search).get('lang');
+let LANG = (urlLang || store.get('lang', 'ru')) === 'en' ? 'en' : 'ru';
+const t = (key, ...args) => { const v = I18N[LANG][key] ?? I18N.ru[key] ?? key; return typeof v === 'function' ? v(...args) : v; };
+// названия кнопок быстрых фильтров (ключ фильтра — русское название, чтобы не сбивались сохранённые фильтры)
+const CHIP_EN = {
+  'Telegram-боты': 'Telegram bots', 'Сайты': 'Websites', 'Вёрстка': 'HTML / CSS', 'Мобильные': 'Mobile apps',
+  'Парсеры': 'Scrapers', 'ИИ / нейросети': 'AI', 'Интеграции / CRM': 'Integrations / CRM', 'Игры': 'Games',
+  'Доработки / баги': 'Fixes / bugs', '1С': '1C', 'Русский': 'Russian',
+};
+const chipLabel = (n) => (LANG === 'en' && CHIP_EN[n]) || n;
+const srcLabel = (s) => s.replace('не IT', t('nonIT'));
+
+function applyStaticTexts() {
+  document.documentElement.lang = LANG;
+  document.title = t('appName');
+  for (const el of document.querySelectorAll('[data-i18n]')) el.textContent = t(el.dataset.i18n);
+  for (const el of document.querySelectorAll('[data-i18n-placeholder]')) el.placeholder = t(el.dataset.i18nPlaceholder);
+  for (const el of document.querySelectorAll('[data-i18n-title]')) el.title = t(el.dataset.i18nTitle);
+  for (const b of $('lang').querySelectorAll('button')) b.classList.toggle('on', b.dataset.l === LANG);
+}
+
 // Площадки, которые нельзя собирать автоматически (нужен ключ, вход или стоит защита от ботов).
 // Это просто ссылки на поиск: открываются в браузере, как если бы ты зашёл сам. Можно дописывать свои.
+// Тексты — строка или { ru, en }.
 const MANUAL_LINKS = [
   ['Reddit', [
-    ['r/forhire — [Hiring] про ботов, Python, сайты', 'https://www.reddit.com/r/forhire/search/?q=flair%3AHiring+%28bot+OR+telegram+OR+python+OR+website%29&restrict_sr=1&sort=new'],
-    ['r/forhire — все [Hiring]', 'https://www.reddit.com/r/forhire/search/?q=flair%3AHiring&restrict_sr=1&sort=new'],
-    ['r/slavelabour — мелкие задачи', 'https://www.reddit.com/r/slavelabour/new/', 'дёшево, но легко получить первые отзывы'],
+    [{ ru: 'r/forhire — [Hiring] про ботов, Python, сайты', en: 'r/forhire — [Hiring] bots, Python, websites' }, 'https://www.reddit.com/r/forhire/search/?q=flair%3AHiring+%28bot+OR+telegram+OR+python+OR+website%29&restrict_sr=1&sort=new'],
+    [{ ru: 'r/forhire — все [Hiring]', en: 'r/forhire — all [Hiring]' }, 'https://www.reddit.com/r/forhire/search/?q=flair%3AHiring&restrict_sr=1&sort=new'],
+    [{ ru: 'r/slavelabour — мелкие задачи', en: 'r/slavelabour — small tasks' }, 'https://www.reddit.com/r/slavelabour/new/', { ru: 'дёшево, но легко получить первые отзывы', en: 'cheap, but an easy way to get first reviews' }],
     ['r/freelance_forhire — [Hiring]', 'https://www.reddit.com/r/freelance_forhire/search/?q=hiring&restrict_sr=1&sort=new'],
     ['r/gameDevClassifieds — [Paid]', 'https://www.reddit.com/r/gameDevClassifieds/search/?q=flair%3APaid&restrict_sr=1&sort=new'],
   ]],
-  ['Иностранные биржи', [
+  [{ ru: 'Иностранные биржи', en: 'International marketplaces' }, [
     ['Upwork — Telegram bot', 'https://www.upwork.com/nx/search/jobs/?q=telegram%20bot&sort=recency'],
     ['Upwork — Python script', 'https://www.upwork.com/nx/search/jobs/?q=python%20script&sort=recency'],
     ['PeoplePerHour — Telegram bot', 'https://www.peopleperhour.com/freelance-jobs?q=telegram%20bot'],
     ['Workana — Telegram bot', 'https://www.workana.com/jobs?language=en&query=telegram%20bot'],
     ['Guru — Telegram bot', 'https://www.guru.com/d/jobs/q/telegram-bot/'],
-    ['Fiverr — гиги «Telegram bot»', 'https://www.fiverr.com/search/gigs?query=telegram%20bot', 'тут заказчики сами выбирают продавца — смотри цены и описания конкурентов'],
+    [{ ru: 'Fiverr — гиги «Telegram bot»', en: 'Fiverr — "Telegram bot" gigs' }, 'https://www.fiverr.com/search/gigs?query=telegram%20bot',
+      { ru: 'тут заказчики сами выбирают продавца — смотри цены и описания конкурентов', en: 'buyers pick sellers here — study competitors’ prices and descriptions' }],
   ]],
-  ['Русскоязычные', [
-    ['Freelancehunt — проекты', 'https://freelancehunt.com/projects'],
-    ['Weblancer — заказы', 'https://www.weblancer.net/freelance/'],
+  [{ ru: 'Русскоязычные', en: 'Russian-speaking' }, [
+    [{ ru: 'Freelancehunt — проекты', en: 'Freelancehunt — projects' }, 'https://freelancehunt.com/projects'],
+    [{ ru: 'Weblancer — заказы', en: 'Weblancer — jobs' }, 'https://www.weblancer.net/freelance/'],
   ]],
 ];
+const L = (x) => (typeof x === 'string' ? x : x[LANG] || x.ru);
 
 function renderManualLinks() {
   $('manualLinks').innerHTML = MANUAL_LINKS.map(([group, links]) =>
-    `<div><h3>${esc(group)}</h3>${links.map(([title, url, note]) =>
-      `<div><a href="${esc(url)}" target="_blank" rel="noopener">${esc(title)}</a>${note ? ` <span class="note">— ${esc(note)}</span>` : ''}</div>`
+    `<div><h3>${esc(L(group))}</h3>${links.map(([title, url, note]) =>
+      `<div><a href="${esc(url)}" target="_blank" rel="noopener">${esc(L(title))}</a>${note ? ` <span class="note">— ${esc(L(note))}</span>` : ''}</div>`
     ).join('')}</div>`).join('');
-  $('manual').open = store.get('manualOpen', false);
-  $('manual').addEventListener('toggle', () => store.set('manualOpen', $('manual').open));
 }
+$('manual').open = store.get('manualOpen', false);
+$('manual').addEventListener('toggle', () => store.set('manualOpen', $('manual').open));
 
 // Быстрые фильтры. Внутри группы кнопки работают через «или», между группами и с поиском — через «и».
 // У кириллицы нет \b, поэтому границу слова проверяем через (?<![а-яё]) — иначе «бот» нашёлся бы в «работа».
@@ -223,12 +303,12 @@ const chipText = (o) => o.title + ' ' + (o.description || '') + ' ' + (o.categor
 // Флаг страны заказчика. Российские биржи — Россия; Freelancer.com — страна валюты заказа;
 // в остальных случаях страна неизвестна (🌐). Картинки, потому что Windows не рисует эмодзи-флаги.
 const RU_SOURCES = ['FL.ru', 'Kwork', 'Freelance.ru', 'Freelancejob', 'Workspace'];
-const regionName = (() => { try { const d = new Intl.DisplayNames(['ru'], { type: 'region' }); return (c) => d.of(c); } catch { return (c) => c; } })();
+const regionName = (c) => { try { return new Intl.DisplayNames([LANG], { type: 'region' }).of(c); } catch { return c; } };
 function flag(o) {
-  let code = o.country || null, why = 'по валюте заказа';
-  if (!code && RU_SOURCES.includes(o.source)) { code = 'RU'; why = 'российская биржа'; }
+  let code = o.country || null, why = t('byCurrency');
+  if (!code && RU_SOURCES.includes(o.source)) { code = 'RU'; why = t('ruMarket'); }
   if (!code) {
-    const hint = o.source === 'Freelancer.com' || o.source === 'Freelancer.com · не IT' ? 'заказ в долларах — страна неизвестна' : 'страна неизвестна';
+    const hint = o.source.startsWith('Freelancer.com') ? t('usdUnknown') : t('unknownCountry');
     return `<span class="flag globe" title="${hint}">🌐</span>`;
   }
   const c = code.toLowerCase();
@@ -256,9 +336,11 @@ const enabled = new Set(saved.sources || SOURCES.filter((s) => !OFF_BY_DEFAULT.i
 const chipsOn = new Set((saved.chips || []).filter((c) => ALL_CHIP_KEYS.includes(c)));
 // источники, появившиеся после сохранения фильтров, включены по умолчанию
 for (const s of SOURCES) if (!(saved.knownSources || []).includes(s) && saved.sources && !OFF_BY_DEFAULT.includes(s)) enabled.add(s);
-$('sources').innerHTML = SOURCES.map((s) =>
-  `<label class="chk"><input type="checkbox" data-src="${s}" ${enabled.has(s) ? 'checked' : ''}> <span class="src ${s}">${s}</span></label>`
-).join(' ');
+function renderSourceBoxes() {
+  $('sources').innerHTML = SOURCES.map((s) =>
+    `<label class="chk"><input type="checkbox" data-src="${s}" ${enabled.has(s) ? 'checked' : ''}> <span class="src ${s}">${srcLabel(s)}</span></label>`
+  ).join(' ');
+}
 
 function saveFilters() {
   store.set('filters', {
@@ -268,16 +350,19 @@ function saveFilters() {
 }
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const fmt = (n) => n.toLocaleString('ru-RU');
+const fmt = (n) => n.toLocaleString(t('locale'));
 
 function ago(iso) {
   if (!iso) return '';
   const m = Math.round((Date.now() - new Date(iso)) / 60000);
-  if (m < 1) return 'только что';
-  if (m < 60) return `${m} мин назад`;
-  if (m < 1440) return `${Math.floor(m / 60)} ч назад`;
-  return new Date(iso).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  if (m < 1) return t('justNow');
+  if (m < 60) return t('minAgo', m);
+  if (m < 1440) return t('hAgo', Math.floor(m / 60));
+  return new Date(iso).toLocaleString(t('locale'), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
+// единица цены и исходная сумма приходят с сервера по-русски («час», «$20/час»)
+const unitLabel = (u) => (u === 'час' ? t('perHour') : u);
+const noteLabel = (s) => (LANG === 'en' ? s.replace('/час', '/hr') : s);
 
 function render() {
   const words = $('q').value.toLowerCase().split(',').map((w) => w.trim()).filter(Boolean);
@@ -316,49 +401,49 @@ function render() {
     const tr = o.tr && $('translate').checked !== showOriginal.has(o.id) ? o.tr : null;
     const title = tr?.title || o.title;
     const desc = tr?.description || o.description;
-    const trLink = o.tr ? `<a href="#" class="trtoggle" data-id="${esc(o.id)}">${tr ? 'показать оригинал' : 'перевести'}</a>` : '';
+    const trLink = o.tr ? `<a href="#" class="trtoggle" data-id="${esc(o.id)}">${tr ? t('showOriginal') : t('showTranslation')}</a>` : '';
     // пометка у заголовка: текст переведён нейросетью, возможны ошибки
-    const mtBadge = tr ? `<span class="mt" title="Машинный перевод (нейросеть NLLB): возможны ошибки — перед откликом смотри оригинал${
-      o.description && tr.description == null ? '. Описание ещё не переведено' : ''}">машинный перевод</span>` : '';
-    const price = o.price == null ? '<span class="price none">цена не указана</span>'
-      : `<span class="price">${fmt(o.price)}${o.priceMax ? ' – ' + fmt(o.priceMax) : ''} ₽${o.priceUnit ? '/' + esc(o.priceUnit) : ''}` +
-        `${o.priceNote ? ` <small>(${esc(o.priceNote)})</small>` : ''}</span>`;
+    const mtBadge = tr ? `<span class="mt" title="${esc(t('mtHint') + (o.description && tr.description == null ? t('mtDescPending') : ''))}">${t('mt')}</span>` : '';
+    const price = o.price == null ? `<span class="price none">${t('noPriceTag')}</span>`
+      : `<span class="price">${fmt(o.price)}${o.priceMax ? ' – ' + fmt(o.priceMax) : ''} ₽${o.priceUnit ? '/' + esc(unitLabel(o.priceUnit)) : ''}` +
+        `${o.priceNote ? ` <small>(${esc(noteLabel(o.priceNote))})</small>` : ''}</span>`;
     return `<div class="order${isNew ? ' new' : ''}">
       <div class="top"><span>${flag(o)}<a href="${esc(o.url)}" target="_blank" rel="noopener">${esc(title)}</a>${mtBadge}</span>${price}</div>
-      ${desc ? `<div class="desc" title="Нажми, чтобы развернуть">${esc(desc)}</div>` : ''}
-      <div class="meta"><span class="src ${esc(o.source)}">${esc(o.source)}</span>
+      ${desc ? `<div class="desc" title="${t('expand')}">${esc(desc)}</div>` : ''}
+      <div class="meta"><span class="src ${esc(o.source)}">${esc(srcLabel(o.source))}</span>
         ${trLink}
         ${o.tgUrl ? `<a href="${esc(o.tgUrl)}" target="_blank" rel="noopener">${esc(o.category)}</a>` : `<span>${esc(o.category)}</span>`}
         <span>${ago(o.date)}</span>
-        ${o.offers != null ? `<span>откликов: ${o.offers}</span>` : ''}
-        ${isNew ? '<span style="color:var(--new)">● новый</span>' : ''}</div>
+        ${o.offers != null ? `<span>${t('offers')}: ${o.offers}</span>` : ''}
+        ${isNew ? `<span style="color:var(--new)">${t('isNew')}</span>` : ''}</div>
     </div>`;
-  }).join('') : '<div class="empty">Нет заказов под эти фильтры</div>';
+  }).join('') : `<div class="empty">${t('empty')}</div>`;
 
   const st = data.status || {};
   const parts = SOURCES.map((n) => {
     const x = (st.sources || {})[n];
-    if (!x) return `${n}: …`;
-    if (x.disabled) return `<span title="Нужен ключ API — см. README">${n}: не настроен</span>`;
-    return x.ok ? `${n}: ${x.count}` : `<span class="err" title="${esc(x.error)}">${n}: ошибка</span>`;
+    const name = srcLabel(n);
+    if (!x) return `${name}: …`;
+    if (x.disabled) return `<span title="${t('needKey')}">${name}: ${t('notConfigured')}</span>`;
+    return x.ok ? `${name}: ${x.count}` : `<span class="err" title="${esc(x.error)}">${name}: ${t('error')}</span>`;
   });
-  const t = st.translate || {};
-  const trStatus = !t.enabled ? '' : t.error ? ` · <span class="err" title="${esc(t.error)}">перевод: ошибка</span>`
-    : t.loading ? ' · перевод: загрузка модели…' : t.running && t.pending ? ` · перевод: осталось ${t.pending}` : '';
-  $('status').innerHTML = `Показано ${list.length} из ${data.orders.length} · ${parts.join(' · ')}` +
-    (st.lastRun ? ` · обновлено ${ago(st.lastRun)}` : '') + trStatus;
+  const ts = st.translate || {};
+  const trStatus = !ts.enabled ? '' : ts.error ? ` · <span class="err" title="${esc(ts.error)}">${t('trError')}</span>`
+    : ts.loading ? ` · ${t('trLoading')}` : ts.running && ts.pending ? ` · ${t('trLeft', ts.pending)}` : '';
+  $('status').innerHTML = `${t('shown', list.length, data.orders.length)} · ${parts.join(' · ')}` +
+    (st.lastRun ? ` · ${t('updated')} ${ago(st.lastRun)}` : '') + trStatus;
 }
 
 // счётчик на кнопке — сколько заказов этой темы среди включённых площадок
 function renderChips() {
   const pool = data.orders.filter((o) => enabled.has(o.source));
-  $('chips').innerHTML = FILTER_GROUPS.map(([gid, title, items], i) =>
-    `<div class="chiprow"><span class="lbl">${esc(title)}:</span>` + items.map(([n, test]) => {
+  $('chips').innerHTML = FILTER_GROUPS.map(([gid, , items], i) =>
+    `<div class="chiprow"><span class="lbl">${esc(t('g_' + gid))}:</span>` + items.map(([n, test]) => {
       const key = chipKey(gid, n);
-      return `<button class="chip${chipsOn.has(key) ? ' on' : ''}" data-chip="${esc(key)}">${esc(n)}` +
+      return `<button class="chip${chipsOn.has(key) ? ' on' : ''}" data-chip="${esc(key)}">${esc(chipLabel(n))}` +
         `<span class="n">${pool.filter((o) => chipMatch(test, o)).length}</span></button>`;
     }).join('') +
-    (i === FILTER_GROUPS.length - 1 && chipsOn.size ? '<button class="chip reset" data-chip="">сбросить всё</button>' : '') +
+    (i === FILTER_GROUPS.length - 1 && chipsOn.size ? `<button class="chip reset" data-chip="">${t('resetAll')}</button>` : '') +
     '</div>'
   ).join('');
 }
@@ -368,7 +453,7 @@ async function load() {
     const r = await fetch('/api/orders');
     data = await r.json();
     render();
-  } catch { $('status').textContent = 'Сервер не отвечает — запущен ли start.bat?'; }
+  } catch { $('status').textContent = t('noServer'); }
 }
 
 ['q', 'pmin', 'pmax', 'noprice', 'translate', 'sort'].forEach((id) => $(id).addEventListener('input', () => { saveFilters(); render(); }));
@@ -394,10 +479,24 @@ $('list').addEventListener('click', (e) => {
   }
 });
 $('refresh').addEventListener('click', async () => {
-  $('refresh').disabled = true; $('refresh').textContent = 'Обновляю…';
+  $('refresh').disabled = true; $('refresh').textContent = t('refreshing');
   try { await fetch('/api/refresh', { method: 'POST' }); } catch {}
   await load();
-  $('refresh').disabled = false; $('refresh').textContent = 'Обновить сейчас';
+  $('refresh').disabled = false; $('refresh').textContent = t('refresh');
+});
+
+// переключатель языка интерфейса
+function applyLang(l) {
+  LANG = l === 'en' ? 'en' : 'ru';
+  store.set('lang', LANG);
+  applyStaticTexts();
+  renderSourceBoxes();
+  renderManualLinks();
+  render();
+}
+$('lang').addEventListener('click', (e) => {
+  const l = e.target.closest('button')?.dataset.l;
+  if (l && l !== LANG) applyLang(l);
 });
 
 // переключатель темы: light / dark / auto (как в системе)
@@ -414,6 +513,8 @@ $('theme').addEventListener('click', (e) => {
   applyTheme(t);
 });
 
+applyStaticTexts();
+renderSourceBoxes();
 renderManualLinks();
 load();
 setInterval(load, 60000);
