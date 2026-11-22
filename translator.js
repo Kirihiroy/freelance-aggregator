@@ -83,7 +83,7 @@ async function translatePending(orders, save) {
   try {
     // сначала то, что видно в ленте по умолчанию; источники «· не IT» — в самом конце
     const rank = (o) => (/не IT/.test(o.source) ? 1 : 0);
-    const byDate = () => [...orders.values()].filter(needsTranslation)
+    const byDate = () => [...orders.values()].filter((o) => !o.closed && needsTranslation(o)) // закрытые не переводим
       .sort((a, b) => rank(a) - rank(b) || (b.date || '').localeCompare(a.date || ''));
     // заголовки, переведённые старой версией алгоритма, переводим заново
     for (const o of orders.values()) {

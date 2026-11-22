@@ -59,6 +59,9 @@
   main { max-width: 1000px; margin: 0 auto; padding: 16px; }
   .order { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; }
   .order.new { border-left: 4px solid var(--new); }
+  .order.closed { opacity: .55; }
+  .closedtag { display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 999px; font-size: 11px; font-weight: 600;
+    background: var(--err); color: var(--on-accent); vertical-align: 2px; }
   .top { display: flex; gap: 12px; justify-content: space-between; align-items: baseline; }
   .top a { color: var(--text); font-weight: 600; text-decoration: none; font-size: 16px; }
   .top a:hover { color: var(--accent); }
@@ -130,6 +133,7 @@
     <input type="number" id="pmin" data-i18n-placeholder="from" min="0" step="500">
     <input type="number" id="pmax" data-i18n-placeholder="to" min="0" step="500">
     <label class="chk"><input type="checkbox" id="noprice" checked> <span data-i18n="noPrice">показывать без цены</span></label>
+    <label class="chk" data-i18n-title="closedHint"><input type="checkbox" id="showclosed"> <span data-i18n="showClosed">показывать закрытые</span></label>
     <label class="chk" data-i18n-title="translateHint"><input type="checkbox" id="translate" checked> <span data-i18n="translate">переводить на русский</span></label>
     <span style="flex:1"></span>
     <span id="sources"></span>
@@ -179,6 +183,9 @@ const I18N = {
     byCurrency: 'по валюте заказа', ruMarket: 'российская биржа',
     usdUnknown: 'заказ в долларах — страна неизвестна', unknownCountry: 'страна неизвестна',
     nonIT: 'не IT', locale: 'ru-RU',
+    showClosed: 'показывать закрытые', closedTag: 'закрыт',
+    closedHint: 'Заказы, где исполнителя уже выбрали, заказ ушёл в архив или удалён. Проверяются Kwork, Freelancer.com, FL.ru, Workspace и Freelancejob; Freelance.ru и Telegram — нет',
+    closedTagHint: 'Заказ закрыт: исполнитель выбран, заказ в архиве или удалён', closedCount: (n) => `закрыто: ${n}`,
   },
   en: {
     appName: 'IT gigs', theme: 'Theme', themeLight: 'Light', themeDark: 'Dark', themeAuto: 'System',
@@ -203,6 +210,9 @@ const I18N = {
     byCurrency: 'by gig currency', ruMarket: 'Russian marketplace',
     usdUnknown: 'USD gig — country unknown', unknownCountry: 'country unknown',
     nonIT: 'non-IT', locale: 'en-US',
+    showClosed: 'show closed gigs', closedTag: 'closed',
+    closedHint: 'Gigs where a freelancer was already hired, or the gig was archived or deleted. Checked on Kwork, Freelancer.com, FL.ru, Workspace and Freelancejob; not on Freelance.ru or Telegram',
+    closedTagHint: 'Gig closed: freelancer hired, archived or deleted', closedCount: (n) => `closed: ${n}`,
   },
 };
 // ?lang=en в адресе тоже переключает язык (удобно для ссылок и скриншотов)
@@ -330,6 +340,7 @@ $('q').value = saved.q || '';
 $('pmin').value = saved.pmin || '';
 $('pmax').value = saved.pmax || '';
 $('noprice').checked = saved.noprice !== false;
+$('showclosed').checked = saved.showclosed === true;
 $('translate').checked = saved.translate !== false;
 $('sort').value = saved.sort || 'date';
 const enabled = new Set(saved.sources || SOURCES.filter((s) => !OFF_BY_DEFAULT.includes(s)));
@@ -344,7 +355,7 @@ function renderSourceBoxes() {
 
 function saveFilters() {
   store.set('filters', {
-    q: $('q').value, pmin: $('pmin').value, pmax: $('pmax').value, noprice: $('noprice').checked, translate: $('translate').checked,
+    q: $('q').value, pmin: $('pmin').value, pmax: $('pmax').value, noprice: $('noprice').checked, showclosed: $('showclosed').checked, translate: $('translate').checked,
     sort: $('sort').value, sources: [...enabled], knownSources: SOURCES, chips: [...chipsOn],
   });
 }
@@ -370,8 +381,10 @@ function render() {
   const pmax = parseFloat($('pmax').value) || Infinity;
   const noprice = $('noprice').checked;
 
+  const showClosed = $('showclosed').checked;
   let list = data.orders.filter((o) => {
     if (!enabled.has(o.source)) return false;
+    if (o.closed && !showClosed) return false;
     if (o.price == null) { if (!noprice) return false; }
     else {
       const top = o.priceMax || o.price;
@@ -407,8 +420,9 @@ function render() {
     const price = o.price == null ? `<span class="price none">${t('noPriceTag')}</span>`
       : `<span class="price">${fmt(o.price)}${o.priceMax ? ' – ' + fmt(o.priceMax) : ''} ₽${o.priceUnit ? '/' + esc(unitLabel(o.priceUnit)) : ''}` +
         `${o.priceNote ? ` <small>(${esc(noteLabel(o.priceNote))})</small>` : ''}</span>`;
-    return `<div class="order${isNew ? ' new' : ''}">
-      <div class="top"><span>${flag(o)}<a href="${esc(o.url)}" target="_blank" rel="noopener">${esc(title)}</a>${mtBadge}</span>${price}</div>
+    const closedTag = o.closed ? `<span class="closedtag" title="${esc(t('closedTagHint'))}">${t('closedTag')}</span>` : '';
+    return `<div class="order${isNew && !o.closed ? ' new' : ''}${o.closed ? ' closed' : ''}">
+      <div class="top"><span>${flag(o)}<a href="${esc(o.url)}" target="_blank" rel="noopener">${esc(title)}</a>${closedTag}${mtBadge}</span>${price}</div>
       ${desc ? `<div class="desc" title="${t('expand')}">${esc(desc)}</div>` : ''}
       <div class="meta"><span class="src ${esc(o.source)}">${esc(srcLabel(o.source))}</span>
         ${trLink}
@@ -431,12 +445,13 @@ function render() {
   const trStatus = !ts.enabled ? '' : ts.error ? ` · <span class="err" title="${esc(ts.error)}">${t('trError')}</span>`
     : ts.loading ? ` · ${t('trLoading')}` : ts.running && ts.pending ? ` · ${t('trLeft', ts.pending)}` : '';
   $('status').innerHTML = `${t('shown', list.length, data.orders.length)} · ${parts.join(' · ')}` +
-    (st.lastRun ? ` · ${t('updated')} ${ago(st.lastRun)}` : '') + trStatus;
+    (st.lastRun ? ` · ${t('updated')} ${ago(st.lastRun)}` : '') + trStatus +
+    (st.closed?.closed ? ` · <span title="${esc(t('closedHint'))}">${t('closedCount', st.closed.closed)}</span>` : '');
 }
 
 // счётчик на кнопке — сколько заказов этой темы среди включённых площадок
 function renderChips() {
-  const pool = data.orders.filter((o) => enabled.has(o.source));
+  const pool = data.orders.filter((o) => enabled.has(o.source) && (!o.closed || $('showclosed').checked));
   $('chips').innerHTML = FILTER_GROUPS.map(([gid, , items], i) =>
     `<div class="chiprow"><span class="lbl">${esc(t('g_' + gid))}:</span>` + items.map(([n, test]) => {
       const key = chipKey(gid, n);
@@ -456,7 +471,7 @@ async function load() {
   } catch { $('status').textContent = t('noServer'); }
 }
 
-['q', 'pmin', 'pmax', 'noprice', 'translate', 'sort'].forEach((id) => $(id).addEventListener('input', () => { saveFilters(); render(); }));
+['q', 'pmin', 'pmax', 'noprice', 'showclosed', 'translate', 'sort'].forEach((id) => $(id).addEventListener('input', () => { saveFilters(); render(); }));
 $('sources').addEventListener('change', (e) => {
   const s = e.target.dataset.src; if (!s) return;
   e.target.checked ? enabled.add(s) : enabled.delete(s);

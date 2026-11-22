@@ -17,6 +17,7 @@ A self-hosted web app that collects fresh IT / software-development gigs from si
 - **Keyword search** with OR-logic (`python, bot, scraper`)
 - **Sorting** by date or budget
 - **"New since your last visit"** highlighting
+- **Closed gigs are hidden:** Kwork (gig dropped out of the full listing), Freelancer.com (API status), FL.ru / Workspace / Freelancejob (status text on the gig page, each page checked at most hourly) — see `closed.js`
 - Filters persist between sessions
 - Background auto-refresh plus a manual "refresh now" button
 

@@ -29,7 +29,7 @@ async function fetchKwork() {
   for (let page = 1; page <= MAX_PAGES; page++) {
     const html = await get(`https://kwork.ru/projects?c=11&page=${page}`);
     const wants = extractArray(html, 'wants');
-    if (!wants || wants.length === 0) break;
+    if (!wants || wants.length === 0) { out.complete = page > 1; break; }
     for (const w of wants) {
       const price = Math.round(parseFloat(w.priceLimit)) || null;
       const max = Math.round(parseFloat(w.possiblePriceLimit)) || null;
@@ -47,7 +47,8 @@ async function fetchKwork() {
       });
     }
     const last = html.match(/"last_page":(\d+)/);
-    if (last && page >= Number(last[1])) break;
+    // дочитали до последней страницы — выдача полная, и заказ, которого в ней нет, закрыт (см. closed.js)
+    if (last && page >= Number(last[1])) { out.complete = true; break; }
     await sleep(1500);
   }
   return out;

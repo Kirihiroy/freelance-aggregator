@@ -7,6 +7,7 @@ const REFRESH_MIN = 10;          // как часто обновлять зак�
 const KEEP_DAYS = 14;            // сколько дней хранить старые заказы
 const DATA_FILE = path.join(__dirname, 'data', 'orders.json');
 const { translatePending, translatorState } = require('./translator');
+const { checkClosed, closedState, PAGE_CHECKED } = require('./closed');
 
 const SOURCES = {
   'FL.ru': require('./sources/fl'),
@@ -40,6 +41,7 @@ async function refresh() {
   if (status.running) return;
   status.running = true;
   const now = new Date().toISOString();
+  const seenIds = new Set(); // заказы, которые есть в свежей выдаче
   await Promise.all(
     Object.entries(SOURCES).map(async ([name, fn]) => {
       try {
@@ -57,7 +59,15 @@ async function refresh() {
           if (!prev) added++;
           // готовый перевод сохраняем, если текст заказа не поменялся
           const tr = prev?.tr && prev.title === o.title && prev.description === o.description ? prev.tr : undefined;
-          orders.set(o.id, { ...o, date: o.date || prev?.date || now, firstSeen: prev?.firstSeen || now, ...(tr ? { tr } : {}) });
+          // пометку «закрыт» по странице заказа сохраняем (в ленте площадки заказ может ещё висеть);
+          // для остальных площадок заказ в свежей выдаче — открыт
+          const keep = PAGE_CHECKED.includes(o.source) ? { closed: prev?.closed, checkedAt: prev?.checkedAt } : {};
+          orders.set(o.id, { ...o, date: o.date || prev?.date || now, firstSeen: prev?.firstSeen || now, ...(tr ? { tr } : {}), ...keep });
+          seenIds.add(o.id);
+        }
+        // площадка отдала выдачу целиком (Kwork) — чего в ней нет, то закрыто
+        if (list.complete) {
+          for (const o of orders.values()) if (o.source === name && !seenIds.has(o.id) && !o.closed) o.closed = now;
         }
         // источник может вернуть заказы под несколькими именами (Freelancer.com и «Freelancer.com · не IT»)
         const counts = { [name]: 0 };
@@ -79,6 +89,7 @@ async function refresh() {
   status.running = false;
   save();
   translatePending(orders, save); // в фоне, не ждём
+  checkClosed(orders, seenIds, save); // тоже в фоне
 }
 
 function send(res, code, body, type = 'application/json; charset=utf-8') {
@@ -90,7 +101,7 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
   if (url.pathname === '/api/orders') {
     const list = [...orders.values()].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-    return send(res, 200, { status: { ...status, translate: translatorState }, orders: list });
+    return send(res, 200, { status: { ...status, translate: translatorState, closed: closedState }, orders: list });
   }
   if (url.pathname === '/api/refresh' && req.method === 'POST') {
     await refresh();
